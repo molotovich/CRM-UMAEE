@@ -1,0 +1,59 @@
+Para que tu proyecto trabaje con Gunicorn (que es lo más recomendado para producción) he preparado todo lo necesario:
+
+1. Actualización de dependencias
+He añadido gunicorn==21.2.0 al archivo 
+
+backend/requirements.txt
+.
+
+2. Archivo de entrada simplificado
+He creado el archivo 
+
+run.py
+ en la raíz del proyecto. Este archivo sirve como el "enlace" (hook) para Gunicorn, facilitando su ejecución.
+
+3. Cómo ejecutarlo con Gunicorn
+Una vez instaladas las dependencias (pip install -r backend/requirements.txt), puedes arrancar el servidor desde la carpeta raíz con este comando:
+
+bash
+gunicorn -w 4 -b 0.0.0.0:5001 run:app
+Explicación de parámetros:
+
+-w 4: Usa 4 procesos "worker" (puedes ajustar este número según los núcleos de tu CPU).
+-b 0.0.0.0:5001: Escucha en todas las IPs del servidor por el puerto 5001.
+run:app: Indica que debe buscar en el archivo 
+
+run.py
+ el objeto llamado 
+
+app
+.
+Notas adicionales:
+Si vas a usar Gunicorn con MySQL, la conexión ya está preparada en el sistema.
+En producción, te recomendaría configurar Gunicorn detrás de un proxy inverso como Nginx para manejar los certificados SSL y el tráfico estático de forma óptima.
+
+He generado el archivo 
+
+nginx_config.conf
+ en la raíz de tu proyecto.
+
+Este archivo contiene una configuración estándar de servidor para desplegar tu aplicación en producción de forma robusta. Aquí tienes los detalles clave:
+
+1. Dos capas de servicio:
+Archivos Estáticos: Nginx servirá directamente el HTML, CSS y JS desde la carpeta 
+
+static
+. Esto es mucho más eficiente que pedírselos a Flask.
+API Dinámica: Todas las peticiones que empiecen por /api serán redirigidas automáticamente a Gunicorn.
+2. Pasos para activar esta configuración:
+Mover el archivo: Copia el contenido a /etc/nginx/sites-available/crm-umaee (o tu ruta habitual de sitios en Linux).
+Activar el sitio: Crea el enlace simbólico hacia sites-enabled:
+bash
+sudo ln -s /etc/nginx/sites-available/crm-umaee /etc/nginx/sites-enabled/
+Verificar y Reiniciar:
+bash
+sudo nginx -t
+sudo systemctl restart nginx
+Ajustes necesarios en el archivo:
+server_name: Cambia crm.umaee.com por la IP de tu servidor o el dominio real.
+root: Asegúrate de que la ruta /var/www/CRM-UMAEE/backend/static coincida con la ubicación absoluta de tu proyecto en el servidor de producción.

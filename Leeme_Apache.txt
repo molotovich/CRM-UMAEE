@@ -1,0 +1,34 @@
+Si prefieres usar Apache, la configuración es un poco diferente pero sigue la misma lógica de "Proxy Inverso" hacia Gunicorn. He generado el archivo 
+
+apache_config.conf
+ en la raíz de tu proyecto.
+
+Pasos para activar Apache:
+Habilitar módulos necesarios: Apache requiere que actives los módulos de proxy para poder hablar con Gunicorn. Ejecuta:
+
+bash
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod rewrite
+Configurar el VirtualHost:
+
+Copia el contenido de 
+
+apache_config.conf
+ a /etc/apache2/sites-available/crm-umaee.conf.
+Asegúrate de ajustar las rutas absolutas (/var/www/CRM-UMAEE/backend/static) a la ubicación real de tu proyecto en el servidor Linux.
+Activar y Reiniciar:
+
+bash
+sudo a2ensite crm-umaee
+sudo systemctl restart apache2
+Diferencias clave con Nginx:
+ProxyPass: En Apache usamos la directiva ProxyPass para mapear las peticiones /api al puerto :5001 donde corre Gunicorn.
+RewriteEngine: He incluido reglas de reescritura para que, al refrescar la página en el navegador, Apache sepa que debe cargar siempre el 
+
+index.html
+ (comportamiento estándar para aplicaciones SPA).
+Recomendación final:
+Aunque Apache es muy robusto, para aplicaciones modernas de Python/Flask, Nginx suele ser ligeramente más rápido y consume menos memoria al manejar conexiones concurrentes. Si ya tienes Apache instalado por otros servicios, esta configuración te funcionará perfectamente.
+
+¿Hay algo más que necesites para el despliegue final?

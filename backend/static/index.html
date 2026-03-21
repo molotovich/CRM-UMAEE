@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Universitario | Standalone</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login View -->
+    <div class="view-container" id="view-login" style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+        <div class="glass-card" style="width: 100%; max-width: 400px; padding: 2rem;">
+            <h2 style="text-align: center; margin-bottom: 2rem;">Iniciar Sesión</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="tu@email.com" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" style="width: 100%; padding: 0.5rem; margin-bottom: 1.5rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                </div>
+                <div id="login-error" style="color: red; margin-bottom: 1rem; text-align: center; display: none;">Credenciales inválidas</div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Ingresar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Wrapper -->
+    <div id="main-app" style="display: none;">
+        <nav class="navbar glass-card">
+            <div class="brand">CRM UMAEE</div>
+        <div class="nav-links">
+            <a href="#" onclick="showView('kanban')" id="nav-kanban" class="active">Kanban</a>
+            <a href="#" onclick="showView('dashboard')" id="nav-dashboard">Dashboard</a>
+            <a href="#" onclick="showView('usuarios')" id="nav-usuarios">Usuarios</a>
+            <a href="#" onclick="showView('ofertas')" id="nav-ofertas">Oferta Académica</a>
+            <a href="#" onclick="showView('database')" id="nav-database">Base de Datos</a>
+            <a href="#" onclick="showView('reportes')" id="nav-reportes">Reportes</a>
+            <a href="#" onclick="showView('finanzas')" id="nav-finanzas">Info Financiera</a>
+            <a href="#" onclick="showView('kpi')" id="nav-kpi">KPIs</a>
+        </div>
+        <div class="actions">
+            <span id="user-display-name" style="margin-right: 1rem; font-weight: 600; color: var(--text-color);"></span>
+            <button class="btn-secondary" onclick="logout()" style="margin-right: 1rem;">Salir</button>
+            <button class="btn-primary" onclick="openNewProspectModal()">+ Nuevo Prospecto</button>
+        </div>
+    </nav>
+
+    <!-- Kanban View -->
+    <div class="view-container" id="view-kanban">
+        <div class="kanban-container" id="kanban">
+            <div class="kanban-column" data-fase="NUEVO">
+                <div class="column-header">
+                    <span>Nuevo</span>
+                    <span class="badge" id="count-NUEVO">0</span>
+                </div>
+                <div id="cards-NUEVO"></div>
+            </div>
+            <div class="kanban-column" data-fase="CONTACTADO">
+                <div class="column-header">
+                    <span>Contactado</span>
+                    <span class="badge" id="count-CONTACTADO">0</span>
+                </div>
+                <div id="cards-CONTACTADO"></div>
+            </div>
+            <div class="kanban-column" data-fase="CITA">
+                <div class="column-header">
+                    <span>Cita</span>
+                    <span class="badge" id="count-CITA">0</span>
+                </div>
+                <div id="cards-CITA"></div>
+            </div>
+            <div class="kanban-column" data-fase="INSCRITO">
+                <div class="column-header">
+                    <span>Inscrito</span>
+                    <span class="badge" id="count-INSCRITO">0</span>
+                </div>
+                <div id="cards-INSCRITO"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div class="view-container" id="view-dashboard" style="display:none;">
+        <div class="dashboard-header">
+            <h1>Estado de Prospectos</h1>
+        </div>
+        <div class="stats-grid" id="dashboard-stats">
+            <!-- Cards populated by JS -->
+        </div>
+        
+        <div id="prospect-list-section" style="display:none; margin-top: 2rem;">
+            <div class="section-header">
+                <h2 id="table-title">Prospectos</h2>
+                <button class="btn-secondary" onclick="hideProspectList()">Cerrar Lista</button>
+            </div>
+            <div class="glass-card table-container">
+                <table id="prospectos-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Carrera</th>
+                            <th>Vendedor Asignado</th>
+                            <th>Último Seguimiento</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prospectos-table-body">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usuarios View -->
+    <div class="view-container" id="view-usuarios" style="display:none;">
+        <div class="section-header">
+            <h1>Administración de Usuarios</h1>
+            <button class="btn-primary" onclick="openNewUserModal()">+ Nuevo Usuario</button>
+        </div>
+        <div class="glass-card table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="usuarios-table-body">
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Oferta Académica View -->
+    <div class="view-container" id="view-ofertas" style="display:none;">
+        <div class="section-header">
+            <h1>Oferta Académica</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-toggle-config" class="btn-secondary" onclick="toggleOfertaConfig()" style="display: none;">Configuración de Oferta</button>
+                <button class="btn-primary" onclick="openNewOfertaModal()">+ Nueva Oferta</button>
+            </div>
+        </div>
+
+        <div id="oferta-config-container" style="display: none;">
+            <div class="grid-3col" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                <div class="glass-card table-container">
+                    <h3>Carreras</h3>
+                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+                        <input type="text" id="nueva-carrera-input" placeholder="Nombre de carrera">
+                        <button class="btn-secondary" onclick="crearCarrera()">Agregar</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
+                        <tbody id="carreras-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="glass-card table-container">
+                    <h3>Periodos</h3>
+                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+                        <input type="text" id="nuevo-periodo-input" placeholder="Nombre de periodo">
+                        <button class="btn-secondary" onclick="crearPeriodo()">Agregar</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
+                        <tbody id="periodos-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="glass-card table-container">
+                    <h3>Turnos</h3>
+                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;" id="turno-add-container">
+                        <input type="text" id="nuevo-turno-input" placeholder="Nombre de turno">
+                        <button class="btn-secondary" onclick="crearTurno()">Agregar</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
+                        <tbody id="turnos-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="glass-card table-container scrollable-table" style="margin-top: 2rem;">
+            <h3>Costos por Programa (Ofertas)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Carrera</th>
+                        <th>Periodo</th>
+                        <th>Turno</th>
+                        <th>Costo ($)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="ofertas-table-body">
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Info Financiera View -->
+    <div class="view-container" id="view-finanzas" style="display:none;">
+        <div class="section-header">
+            <h1>Información Financiera</h1>
+            <div>
+                <label style="font-weight:bold; margin-right: 0.5rem; color: var(--text-color);">Filtrar por Periodo:</label>
+                <select id="finanzas-periodo-filter" onchange="renderFinanzas()" style="padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                    <option value="ALL">Todos los periodos</option>
+                </select>
+            </div>
+        </div>
+        <div class="glass-card" style="margin-bottom: 2rem; text-align: center; padding: 2rem;">
+            <h2 style="margin-top: 0;">Monto Total Esperado de Inscritos</h2>
+            <div id="monto-total-esperado" style="font-size: 3rem; font-weight: 700; color: var(--success-color, #25d366);">$0.00</div>
+        </div>
+        <div class="glass-card table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Carrera</th>
+                        <th>Periodo</th>
+                        <th>Turno</th>
+                        <th>Costo Unitario</th>
+                        <th>Alumnos Inscritos</th>
+                        <th>Monto Total Promediado</th>
+                    </tr>
+                </thead>
+                <tbody id="finanzas-table-body">
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Base de Datos View -->
+    <div class="view-container" id="view-database" style="display:none;">
+        <div class="section-header">
+            <h1>Administración de Base de Datos</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn-secondary" onclick="fetch(`${API_BASE}/admin/template/download`).then(r => r.blob()).then(b => {
+                    const url = window.URL.createObjectURL(b);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'plantilla_prospectos.xlsx';
+                    a.click();
+                })">Descargar Plantilla</button>
+                <button class="btn-secondary" onclick="repartirEquitativo()" style="background: var(--accent); color: white;">Repartir Equitativamente</button>
+                <div class="input-with-button">
+                    <input type="file" id="bulk-upload-input" accept=".csv, .xlsx" style="display: none;" onchange="handleBulkUpload(this)">
+                    <button class="btn-primary" onclick="document.getElementById('bulk-upload-input').click()">+ Subida Masiva (Excel/CSV)</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="glass-card table-container scrollable-table">
+            <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0;">Asignación de Ejecutivos</h3>
+                <div style="display: flex; gap: 0.5rem;">
+                   <input type="text" id="db-search-input" placeholder="Buscar por nombre..." oninput="renderDatabaseItems()" style="padding: 0.4rem;">
+                   <select id="db-vendedor-filter" onchange="renderDatabaseItems()" style="padding: 0.4rem;">
+                       <option value="ALL">Cualquier Ejecutivo</option>
+                       <option value="NONE">Sin Asignar</option>
+                   </select>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre Prospecto</th>
+                        <th>Fase Actual</th>
+                        <th>Ejecutivo Asignado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="database-table-body">
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reportes View -->
+    <div class="view-container" id="view-reportes" style="display:none;">
+        <div class="section-header">
+            <h1>Generación de Reportes</h1>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn-primary" onclick="descargarReporte('excel')">Descargar Excel</button>
+                <button class="btn-primary" onclick="descargarReporte('pdf')">Descargar PDF</button>
+                <button class="btn-secondary" onclick="window.print()">Imprimir</button>
+            </div>
+        </div>
+        
+        <div class="glass-card form-container" style="margin-bottom: 2rem;">
+            <h3>Filtros</h3>
+            <form id="filtro-reportes-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label>Fase (Status)</label>
+                    <select id="filtro-fase" name="fase">
+                        <option value="">Todos</option>
+                        <option value="NUEVO">Nuevo</option>
+                        <option value="CONTACTADO">Contactado</option>
+                        <option value="CITA">Cita</option>
+                        <option value="INSCRITO">Inscrito</option>
+                        <option value="PERDIDO">Perdido</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Vendedor</label>
+                    <select id="filtro-vendedor" name="id_vendedor">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Escuela de Origen</label>
+                    <select id="filtro-escuela" name="id_escuela">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Promedio Mínimo</label>
+                    <input type="number" id="filtro-promedio-min" name="promedio_min" step="0.1" min="0" max="10">
+                </div>
+                <div class="form-group">
+                    <label>Promedio Máximo</label>
+                    <input type="number" id="filtro-promedio-max" name="promedio_max" step="0.1" min="0" max="10">
+                </div>
+                <div class="form-group">
+                    <label>Último Seguimiento (Desde)</label>
+                    <input type="date" id="filtro-fecha-inicio" name="fecha_inicio">
+                </div>
+                <div class="form-group">
+                    <label>Último Seguimiento (Hasta)</label>
+                    <input type="date" id="filtro-fecha-fin" name="fecha_fin">
+                </div>
+                <div class="form-actions" style="grid-column: 1 / -1; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('filtro-reportes-form').reset(); fetchPrevisualizacionReporte()">Limpiar Filtros</button>
+                    <button type="button" class="btn-primary" onclick="fetchPrevisualizacionReporte()">Aplicar Filtros</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="glass-card table-container">
+            <h3>Previsualización</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Fase</th>
+                        <th>Escuela</th>
+                        <th>Promedio</th>
+                        <th>Vendedor</th>
+                        <th>Último Seguimiento</th>
+                    </tr>
+                </thead>
+                <tbody id="reportes-table-body">
+                    <!-- Rows populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- KPI View -->
+    <div class="view-container" id="view-kpi" style="display:none;">
+        <div class="section-header">
+            <h1>KPIs de Rendimiento por Vendedor</h1>
+        </div>
+        
+        <div class="grid-2col" style="display:grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+            <div class="glass-card form-container">
+                <h3 style="margin-top: 0;">Definir Metas</h3>
+                <form id="kpi-meta-form">
+                    <div class="form-group">
+                        <label>Vendedor</label>
+                        <select id="kpi-vendedor-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Mes de Evaluación</label>
+                        <input type="month" id="kpi-mes-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Meta de Contactos (Seguimientos)</label>
+                        <input type="number" id="kpi-meta-contactos" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Meta de Inscritos</label>
+                        <input type="number" id="kpi-meta-inscritos" min="0" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Meta</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="glass-card table-container">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Reporte de Productividad</h3>
+                    <div>
+                        <input type="month" id="reporte-mes-input" onchange="loadKPIReporte()">
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vendedor</th>
+                            <th>Mes</th>
+                            <th>Contactos (Real / Meta)</th>
+                            <th>Inscritos (Real / Meta)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kpi-reporte-body">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeAllModals()">
+        <div class="glass-card modal-content" onclick="event.stopPropagation()">
+            <!-- New User Modal -->
+            <div id="modal-user" style="display:none;">
+                <h2 id="user-modal-title">Nuevo Usuario</h2>
+                <form id="user-form">
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" name="nombre_completo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select name="rol" required>
+                            <option value="VENDEDOR">Vendedor</option>
+                            <option value="ADMIN">Administrador</option>
+                            <option value="SUPERADMIN">Superadministrador</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña (vacio para omitir)</label>
+                        <input type="password" name="password">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Usuario</button>
+                    </div>
+                </form>
+            </div>
+            <div id="modal-enroll" style="display:none;">
+                <h2>Inscribir Prospecto</h2>
+                <form id="enroll-form">
+                    <div class="form-group">
+                        <label>Seleccionar Oferta Académica</label>
+                        <select name="id_oferta_inscripcion" id="enroll-oferta-select" required>
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" style="background:var(--success-color, #28a745);">Confirmar Inscripción</button>
+                        <button type="button" class="btn-secondary" onclick="closeAllModals()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+            <div id="modal-new-oferta" style="display:none;">
+                <h2>Nueva Oferta Académica</h2>
+                <form id="new-oferta-form">
+                    <div class="form-group">
+                        <label>Carrera</label>
+                        <select name="id_carrera" id="oferta-carrera-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Periodo</label>
+                        <select name="id_periodo" id="oferta-periodo-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Turno</label>
+                        <select name="id_turno" id="oferta-turno-select" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Costo</label>
+                        <input type="number" name="costo" step="0.01" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Oferta</button>
+                    </div>
+                </form>
+            </div>
+            <div id="modal-new-prospect" style="display:none;">
+                <h2>Nuevo Prospecto</h2>
+                <form id="new-prospect-form" class="prospect-form-grid">
+                    <div class="form-group">
+                        <label>Nombre(s)</label>
+                        <input type="text" name="nombre" placeholder="Nombres" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Apellido Paterno</label>
+                        <input type="text" name="apellido_paterno" placeholder="Apellido Paterno" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Apellido Materno</label>
+                        <input type="text" name="apellido_materno" placeholder="Apellido Materno">
+                    </div>
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select name="sexo" required>
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Captura</label>
+                        <input type="date" name="fecha_captura" id="field-fecha-captura" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Turno</label>
+                        <select name="turno" required>
+                            <option value="MATUTINO">Matutino</option>
+                            <option value="VESPERTINO">Vespertino</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" name="telefono" placeholder="Teléfono">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" placeholder="Email">
+                    </div>
+                    <div class="form-group">
+                        <label>Escuela de Procedencia</label>
+                        <div class="input-with-button">
+                            <input type="text" id="input-escuela" list="escuelas-list" placeholder="Buscar escuela..." required>
+                            <button type="button" id="add-school-btn" class="btn-icon" title="Agregar nueva escuela">+</button>
+                        </div>
+                        <input type="hidden" name="id_escuela" id="hidden-id-escuela">
+                        <datalist id="escuelas-list"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Semestre</label>
+                        <input type="number" name="semestre" placeholder="Semestre" min="1" max="12">
+                    </div>
+                    <div class="form-group">
+                        <label>Promedio</label>
+                        <input type="number" name="promedio" placeholder="Promedio" step="0.1" min="0" max="10">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Carrera de Interés</label>
+                        <input type="text" name="carrera_interes" placeholder="Carrera de Interés">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Origen del Prospecto</label>
+                        <select name="origen_prospecto" required>
+                            <option value="WEB">Web</option>
+                            <option value="SALONEO">Saloneo</option>
+                            <option value="VISITA A INSTALACIONES">Visita a Instalaciones</option>
+                            <option value="TELEFONO">Teléfono</option>
+                        </select>
+                    </div>
+                    <div class="form-actions full-width">
+                        <button type="submit" class="btn-primary">Guardar Prospecto</button>
+                    </div>
+                </form>
+            </div>
+            <div id="modal-detail" style="display:none;">
+                <h2 id="detail-name">Detalle</h2>
+                <div class="prospect-detail-info" id="detail-info-grid">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="timeline" id="detail-timeline"></div>
+                <hr>
+                <h3>Nuevo Seguimiento</h3>
+                <form id="new-seguimiento-form">
+                    <select name="tipo_contacto">
+                        <option value="LLAMADA">Llamada</option>
+                        <option value="WHATSAPP">WhatsApp</option>
+                        <option value="EMAIL">Email</option>
+                    </select>
+                    <textarea name="comentarios" placeholder="Comentarios..." required></textarea>
+                    <button type="submit" class="btn-primary">Registrar</button>
+                    <button type="button" class="btn-primary" style="background:#25d366" onclick="openWhatsApp()">WhatsApp</button>
+                    <button type="button" class="btn-danger" onclick="markAsLost()">Marcar como Perdido</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    </div> <!-- End main-app -->
+
+    <script src="app.js"></script>
+</body>
+</html>
+
