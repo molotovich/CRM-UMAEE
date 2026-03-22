@@ -2,9 +2,10 @@ import os
 from datetime import datetime
 import pandas as pd
 import io
-from flask import request, session, send_file, send_from_directory
+from flask import Flask, request, session, send_file, send_from_directory
+from flask_cors import CORS
 from sqlalchemy import func, desc
-from models import db, Prospecto, Seguimiento, Usuario, EscuelaProcedencia, OfertaAcademica, MetaVendedor, Carrera, Periodo, Turno
+from .models import db, Prospecto, Seguimiento, Usuario, EscuelaProcedencia, OfertaAcademica, MetaVendedor, Carrera, Periodo, Turno
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
