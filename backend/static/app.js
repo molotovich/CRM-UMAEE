@@ -1,8 +1,73 @@
 const API_BASE = '/api';
 
-async function fetchProspectos() {
-    const res = await fetch(`${API_BASE}/prospectos`);
+// Theme Persistence
+if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-mode');
+}
+
+window.toggleTheme = function() {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+};
+
+// Global filter state for columns
+const columnFilters = {
+    'NUEVO': { q: '', semestre: '', turno: '', ciclo: '', promedioMin: '' },
+    'CONTACTADO': { q: '', semestre: '', turno: '', ciclo: '', promedioMin: '' },
+    'CITA': { q: '', timing: '', promedioMin: '' },
+    'INSCRITO': { q: '', semestre: '', turno: '', ciclo: '', promedioMin: '' }
+};
+
+let citaSortOrder = 'asc';
+
+window.toggleCitaSort = function() {
+    citaSortOrder = citaSortOrder === 'asc' ? 'desc' : 'asc';
+    fetchProspectos();
+};
+
+window.toggleColumnFilter = function(fase) {
+    const pnl = document.getElementById(`filter-${fase}`);
+    if(pnl) pnl.style.display = pnl.style.display === 'none' ? 'block' : 'none';
+};
+
+window.updateColumnFilter = function(fase, field, value) {
+    columnFilters[fase][field] = value.toLowerCase();
+    fetchProspectos(); // Re-render with active filters
+};
+
+// Caching System to reduce server load
+const CACHE_PREFIX = 'crm_cache_';
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
+
+async function fetchWithCache(url, forceRefresh = false) {
+    const cacheKey = CACHE_PREFIX + url;
+    if (!forceRefresh) {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                if (Date.now() - parsed.timestamp < CACHE_TTL_MS) {
+                    return parsed.data;
+                }
+            } catch (e) {}
+        }
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP error');
     const data = await res.json();
+    sessionStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+    return data;
+}
+
+window.forceSyncCache = async function() {
+    await fetchProspectos(true);
+    await fetchEscuelas(true);
+    alert('Información del sistema actualizada y cacheada con éxito.');
+};
+
+async function fetchProspectos(forceRefresh = false) {
+    const data = await fetchWithCache(`${API_BASE}/prospectos`, forceRefresh);
     
     let filtered = data.prospectos;
     const role = getCurrentRole();
@@ -10,23 +75,67 @@ async function fetchProspectos() {
         filtered = data.prospectos.filter(p => p.id_vendedor_asignado == currentUser.id_usuario);
     }
     
+    // Apply column filters
+    filtered = filtered.filter(p => {
+        const f = columnFilters[p.fase_crm];
+        if (!f) return true;
+        
+        if (f.q && !(p.nombre.toLowerCase().includes(f.q) || (p.escuela || '').toLowerCase().includes(f.q))) return false;
+        
+        if (p.fase_crm === 'CITA') {
+            const dtFilter = document.getElementById('filter-cita-date');
+            if (dtFilter && dtFilter.value && p.fecha_cita && !p.fecha_cita.startsWith(dtFilter.value)) return false;
+            
+            if (f.timing) {
+                if(!p.fecha_cita) return false;
+                const cDate = new Date(p.fecha_cita).toDateString();
+                const now = new Date().toDateString();
+                const isToday = cDate === now;
+                const isPast = new Date(p.fecha_cita) < new Date();
+                
+                if(f.timing === 'today' && !isToday) return false;
+                if(f.timing === 'future' && (isPast || isToday)) return false;
+                if(f.timing === 'past' && !isPast) return false;
+            }
+        }
+        
+        if (f.semestre && p.semestre != f.semestre) return false;
+        if (f.turno && (p.turno_interes || '').toLowerCase() !== f.turno.toLowerCase()) return false;
+        if (f.ciclo && (p.periodo_interes || '').toLowerCase() !== f.ciclo.toLowerCase()) return false;
+        if (f.promedioMin && parseFloat(p.promedio || 0) < parseFloat(f.promedioMin)) return false;
+        
+        return true;
+    });
+    
+    // Optional sorting for CITA
+    const citaList = filtered.filter(p => p.fase_crm === 'CITA');
+    citaList.sort((a, b) => {
+        if(!a.fecha_cita) return 1;
+        if(!b.fecha_cita) return -1;
+        const diff = new Date(a.fecha_cita) - new Date(b.fecha_cita);
+        return citaSortOrder === 'asc' ? diff : -diff;
+    });
+    
+    filtered = filtered.filter(p => p.fase_crm !== 'CITA').concat(citaList);
+    
     renderKanban(filtered);
 }
 
 let allEscuelas = [];
 
-async function fetchEscuelas() {
-    const res = await fetch(`${API_BASE}/escuelas`);
-    const data = await res.json();
+async function fetchEscuelas(forceRefresh = false) {
+    const data = await fetchWithCache(`${API_BASE}/escuelas`, forceRefresh);
     allEscuelas = data.escuelas;
     
     const datalist = document.getElementById('escuelas-list');
-    datalist.innerHTML = '';
-    allEscuelas.forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e.nombre_escuela;
-        datalist.appendChild(opt);
-    });
+    if (datalist) {
+        datalist.innerHTML = '';
+        allEscuelas.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.nombre_escuela;
+            datalist.appendChild(opt);
+        });
+    }
 }
 
 // Logic for autocomplete sync
@@ -56,6 +165,17 @@ document.getElementById('add-school-btn').onclick = async () => {
     }
 };
 
+function getSemaforo(isoDate) {
+    if(!isoDate) return {class:'', label:'Sin fecha', dot:''};
+    const cDate = new Date(isoDate);
+    const now = new Date();
+    const isToday = cDate.toDateString() === now.toDateString();
+    
+    if (isToday) return {class:'semaforo-hoy', label:'Hoy', dot:'hoy'};
+    if (cDate < now) return {class:'semaforo-alert', label:'Vencida', dot:'alert'};
+    return {class:'semaforo-ok', label:'Próxima', dot:'ok'};
+}
+
 function renderKanban(prospectos) {
     const phases = ['NUEVO', 'CONTACTADO', 'CITA', 'INSCRITO'];
     phases.forEach(phase => {
@@ -71,16 +191,39 @@ function renderKanban(prospectos) {
             card.className = 'prospect-card';
             card.draggable = true;
             card.dataset.id = p.id_prospecto;
-            card.innerHTML = `
-                <div class="prospect-name">${p.nombre} ${p.apellido_paterno}</div>
-                <div class="prospect-meta">${p.email || 'Sin email'}</div>
-                <div class="prospect-meta">${p.telefono || 'Sin teléfono'}</div>
-                <div class="prospect-meta" style="font-weight:600">${p.escuela || 'Sin escuela'}</div>
-                <div class="prospect-origin-tag">${p.origen_prospecto || 'SIN ORIGEN'}</div>
-            `;
+            
+            if (phase === 'CITA') {
+                const sem = getSemaforo(p.fecha_cita);
+                const citaDate = p.fecha_cita ? new Date(p.fecha_cita) : null;
+                const dateStr = citaDate ? citaDate.toLocaleDateString() : 'No asignada';
+                const timeStr = citaDate ? citaDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                
+                card.classList.add(sem.class);
+                card.innerHTML = `
+                    <div class="prospect-card-cita">
+                        <div>
+                            <div class="prospect-name">${p.nombre} ${p.apellido_paterno}</div>
+                            <div class="prospect-meta"><span class="semaforo-dot ${sem.dot}"></span>${p.escuela || 'Sin escuela'}</div>
+                        </div>
+                        <div class="cita-info">
+                            <strong>${dateStr}</strong>
+                            <span>${timeStr}</span>
+                            <span style="font-size:0.5rem; opacity:0.7">${sem.label}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="prospect-name">${p.nombre} ${p.apellido_paterno}</div>
+                    <div class="prospect-meta">${p.email || 'Sin email'}</div>
+                    <div class="prospect-meta">${p.telefono || 'Sin teléfono'}</div>
+                    <div class="prospect-meta" style="font-weight:600">${p.escuela || 'Sin escuela'}</div>
+                    <div class="prospect-origin-tag">${p.origen_prospecto || 'SIN ORIGEN'}</div>
+                `;
+            }
             
             card.ondragstart = (e) => {
-                e.dataTransfer.setData('text/plain', p.id_prospecto);
+                e.dataTransfer.setData('text/plain', String(p.id_prospecto));
                 card.classList.add('dragging');
             };
             card.ondragend = () => card.classList.remove('dragging');
@@ -92,25 +235,32 @@ function renderKanban(prospectos) {
 }
 
 // Setup Drag and Drop containers
-document.querySelectorAll('.kanban-column').forEach(column => {
-    column.ondragover = (e) => e.preventDefault();
-    column.ondrop = async (e) => {
-        e.preventDefault();
-        const id = e.dataTransfer.getData('text/plain');
-        const newFase = column.dataset.fase;
-        
-        if (newFase === 'INSCRITO') {
-            await openEnrollModal(id);
-            return;
-        }
-        
-        await fetch(`${API_BASE}/prospectos/${id}/fase`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fase_crm: newFase })
-        });
-        fetchProspectos();
-    };
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.kanban-column').forEach(column => {
+        column.ondragover = (e) => e.preventDefault();
+        column.ondrop = async (e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain');
+            const newFase = column.dataset.fase;
+            
+            if (newFase === 'INSCRITO') {
+                await openEnrollModal(id);
+                return;
+            }
+            if (newFase === 'CITA') {
+                openCitaModal(id);
+                return;
+            }
+            
+            await fetch(`${API_BASE}/prospectos/${id}/fase`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fase_crm: newFase })
+            });
+            fetchProspectos(true); // Force refresh to show update
+            fetchProspectos(true); // Force refresh to show update
+        };
+    });
 });
 
 let currentProspectId = null;
@@ -165,11 +315,38 @@ function showModal(id) {
     document.getElementById('modal-user').style.display = id === 'user-modal' ? 'block' : 'none';
     document.getElementById('modal-enroll').style.display = id === 'modal-enroll' ? 'block' : 'none';
     document.getElementById('modal-new-oferta').style.display = id === 'modal-new-oferta' ? 'block' : 'none';
+    document.getElementById('modal-cita').style.display = id === 'modal-cita' ? 'block' : 'none';
 }
 
 function closeAllModals() {
     document.getElementById('modal-overlay').style.display = 'none';
 }
+
+let citaProspectId = null;
+
+function openCitaModal(id) {
+    citaProspectId = id;
+    document.getElementById('cita-form').reset();
+    showModal('modal-cita');
+}
+
+document.getElementById('cita-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fecha = document.getElementById('cita-date-input').value;
+    const hora = document.getElementById('cita-time-input').value;
+    const isoDateTime = `${fecha}T${hora}:00`;
+
+    const res = await fetch(`${API_BASE}/prospectos/${citaProspectId}/fase`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fase_crm: 'CITA', fecha_cita: isoDateTime })
+    });
+    
+    if (res.ok) {
+        closeAllModals();
+        fetchProspectos(true);
+    }
+};
 
 function openNewProspectModal() {
     // Set default date to today
@@ -208,8 +385,67 @@ async function editProspect(id) {
     form.email.value = p.email || '';
     form.semestre.value = p.semestre || '';
     form.promedio.value = p.promedio || '';
-    form.carrera_interes.value = p.carrera_interes || '';
     form.origen_prospecto.value = p.origen_prospecto || 'WEB';
+    
+    function setSelectedOrManual(selectId, manualId, value) {
+        const select = document.getElementById(selectId);
+        const manual = document.getElementById(manualId);
+        if (!value) {
+            select.value = '';
+            manual.value = '';
+            manual.style.display = 'none';
+            return;
+        }
+        if (Array.from(select.options).some(o => o.value === value)) {
+            select.value = value;
+            manual.style.display = 'none';
+        } else {
+            select.value = 'OTRO';
+            manual.value = value;
+            manual.style.display = 'block';
+        }
+    }
+
+    setSelectedOrManual('carrera-select-1', 'carrera-manual-1', p.carrera_interes);
+    
+    if (p.carrera_interes_2) {
+        document.getElementById('carrera-row-2').style.display = 'block';
+        document.getElementById('btn-add-carrera-2').style.display = 'none';
+        document.getElementById('btn-add-carrera-3').style.display = 'inline-block';
+        setSelectedOrManual('carrera-select-2', 'carrera-manual-2', p.carrera_interes_2);
+    } else {
+        document.getElementById('carrera-row-2').style.display = 'none';
+        document.getElementById('btn-add-carrera-2').style.display = 'inline-block';
+        document.getElementById('btn-add-carrera-3').style.display = 'none';
+        setSelectedOrManual('carrera-select-2', 'carrera-manual-2', '');
+    }
+
+    if (p.carrera_interes_3) {
+        document.getElementById('carrera-row-3').style.display = 'block';
+        document.getElementById('btn-add-carrera-3').style.display = 'none';
+        setSelectedOrManual('carrera-select-3', 'carrera-manual-3', p.carrera_interes_3);
+    } else {
+        document.getElementById('carrera-row-3').style.display = 'none';
+        if (p.carrera_interes_2) {
+            document.getElementById('btn-add-carrera-3').style.display = 'inline-block';
+        }
+        setSelectedOrManual('carrera-select-3', 'carrera-manual-3', '');
+    }
+
+    form.periodo_interes.value = p.periodo_interes || '';
+    form.turno_interes.value = p.turno_interes || '';
+
+    form.tutor_nombre.value = p.tutor_nombre || '';
+    form.tutor_telefono.value = p.tutor_telefono || '';
+    form.tutor_email.value = p.tutor_email || '';
+
+    if (p.tutor_nombre || p.tutor_telefono || p.tutor_email) {
+        document.getElementById('tutor-section').style.display = 'grid';
+        document.getElementById('btn-toggle-tutor').innerText = '- Ocultar Información del Tutor';
+    } else {
+        document.getElementById('tutor-section').style.display = 'none';
+        document.getElementById('btn-toggle-tutor').innerText = '+ Agregar Información del Tutor (Opcional)';
+    }
     
     // Handle school
     document.getElementById('input-escuela').value = p.escuela || '';
@@ -217,11 +453,47 @@ async function editProspect(id) {
     
     showModal('modal-new-prospect');
 }
+function toggleTutorSection() {
+    const el = document.getElementById('tutor-section');
+    const btn = document.getElementById('btn-toggle-tutor');
+    if (el.style.display === 'none') {
+        el.style.display = 'grid';
+        btn.innerText = '- Ocultar Información del Tutor';
+    } else {
+        el.style.display = 'none';
+        btn.innerText = '+ Agregar Información del Tutor (Opcional)';
+    }
+}
+
+function toggleOtroManual(num) {
+    const select = document.getElementById(`carrera-select-${num}`);
+    const manual = document.getElementById(`carrera-manual-${num}`);
+    if (select.value === 'OTRO') {
+        manual.style.display = 'block';
+        manual.required = true;
+    } else {
+        manual.style.display = 'none';
+        manual.required = false;
+        manual.value = '';
+    }
+}
 
 document.getElementById('new-prospect-form').onsubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
+    
+    // Process carrera_interes manual inputs
+    for (let i = 1; i <= 3; i++) {
+        const key = i === 1 ? 'carrera_interes' : `carrera_interes_${i}`;
+        const manualKey = `carrera_interes_manual_${i}`;
+        
+        if (data[key] === 'OTRO') {
+            data[key] = data[manualKey];
+        }
+        delete data[manualKey];
+    }
+    
     const mode = e.target.dataset.mode;
     const id = e.target.dataset.id;
     
@@ -338,12 +610,31 @@ async function loadUsuarios() {
     });
 }
 
+function populateUserRoles(selectedRole = 'VENDEDOR') {
+    const roleSelect = document.querySelector('#user-form select[name="rol"]');
+    if (!roleSelect) return;
+
+    let roles = [
+        { val: 'VENDEDOR', label: 'Vendedor' },
+        { val: 'ADMIN', label: 'Administrador' },
+        { val: 'SUPERADMIN', label: 'Superadministrador' }
+    ];
+
+    if (currentUser && currentUser.rol === 'SUPERADMIN') {
+        roles.push({ val: 'DESARROLLADOR', label: 'Desarrollador' });
+    }
+
+    roleSelect.innerHTML = roles.map(r => `<option value="${r.val}" ${selectedRole === r.val ? 'selected' : ''}>${r.label}</option>`).join('');
+}
+
 async function openNewUserModal() {
     const form = document.getElementById('user-form');
     form.reset();
     form.dataset.mode = 'create';
     delete form.dataset.id;
     document.getElementById('user-modal-title').innerText = 'Nuevo Usuario';
+    
+    populateUserRoles();
     showModal('user-modal');
 }
 
@@ -359,7 +650,8 @@ async function editUsuario(id) {
     
     form.nombre_completo.value = u.nombre_completo;
     form.email.value = u.email;
-    form.rol.value = u.rol;
+    
+    populateUserRoles(u.rol);
     
     showModal('user-modal');
 }
@@ -477,6 +769,35 @@ async function loadOfertas() {
     
     const ofertaTurnoSelect = document.getElementById('oferta-turno-select');
     if (ofertaTurnoSelect) ofertaTurnoSelect.innerHTML = dataTurnos.turnos.map(t => `<option value="${t.id_turno}">${t.nombre}</option>`).join('');
+    
+    // Populate Prospect Form Selects
+    const carreraOptions = `<option value="">-- Seleccionar --</option>` + 
+        dataCarreras.carreras.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('') +
+        `<option value="OTRO">OTRA (Capturar manualmente)</option>`;
+    
+    const c1 = document.getElementById('carrera-select-1');
+    const c2 = document.getElementById('carrera-select-2');
+    const c3 = document.getElementById('carrera-select-3');
+    if (c1) c1.innerHTML = carreraOptions;
+    if (c2) c2.innerHTML = carreraOptions;
+    if (c3) c3.innerHTML = carreraOptions;
+
+    const periodoOptions = `<option value="">-- Seleccionar --</option>` + 
+        dataPeriodos.periodos.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    const pSel = document.getElementById('periodo-interes-select');
+    if (pSel) pSel.innerHTML = periodoOptions;
+
+    // Populate Kanban Column Ciclo Filters
+    ['NUEVO', 'CONTACTADO', 'INSCRITO'].forEach(fase => {
+        const sel = document.getElementById(`filter-ciclo-${fase}`);
+        if (sel) sel.innerHTML = `<option value="">Ciclo (Cualquier)</option>` + 
+            dataPeriodos.periodos.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    });
+
+    const turnoOptions = `<option value="">-- Seleccionar --</option>` + 
+        dataTurnos.turnos.map(t => `<option value="${t.nombre}">${t.nombre}</option>`).join('');
+    const tSel = document.getElementById('turno-interes-select');
+    if (tSel) tSel.innerHTML = turnoOptions;
 
     const resOfertas = await fetch(`${API_BASE}/admin/ofertas`);
     const dataOfertas = await resOfertas.json();
@@ -571,7 +892,15 @@ async function crearTurno() {
 let currentUser = null;
 
 function getCurrentRole() {
+    if (currentUser && currentUser.rol === 'DESARROLLADOR') {
+        const mimic = localStorage.getItem('dev_mimic_role');
+        return mimic || 'SUPERADMIN';
+    }
     return currentUser ? currentUser.rol : 'VENDEDOR';
+}
+
+function getCurrentUserId() {
+    return currentUser ? currentUser.id_usuario : null;
 }
 
 document.getElementById('login-form').onsubmit = async (e) => {
@@ -605,12 +934,32 @@ async function logout() {
 function initApp() {
     document.getElementById('view-login').style.display = 'none';
     document.getElementById('main-app').style.display = 'block';
-    document.getElementById('user-display-name').innerText = currentUser.nombre_completo;
+    
+    let displayName = currentUser.nombre_completo;
+    
+    // Developer toggle
+    if (currentUser.rol === 'DESARROLLADOR') {
+        const switcher = document.getElementById('dev-role-switcher');
+        if (switcher) {
+            switcher.style.display = 'inline-block';
+            switcher.value = localStorage.getItem('dev_mimic_role') || 'SUPERADMIN';
+        }
+        displayName += ' (Modo Dev)';
+    }
+
+    document.getElementById('user-display-name').innerText = displayName;
     
     updateUIForRole();
     fetchProspectos();
     fetchEscuelas();
 }
+
+window.mimicRole = function(role) {
+    if (currentUser && currentUser.rol === 'DESARROLLADOR') {
+        localStorage.setItem('dev_mimic_role', role);
+        window.location.reload(); 
+    }
+};
 
 function checkLoginState() {
     const stored = localStorage.getItem('crm_user');
@@ -662,9 +1011,10 @@ function updateUIForRole() {
         if(navReportes) navReportes.style.display = 'inline-block';
         if(navFinanzas) navFinanzas.style.display = 'inline-block';
         if(navKpi) navKpi.style.display = 'inline-block';
+    } else if (role === 'VENDEDOR') {
+        if(navDashboard) navDashboard.style.display = 'inline-block';
+        if(navReportes) navReportes.style.display = 'inline-block';
     }
-    
-    // If the user's current view is no longer accessible, force back to Kanban
     const currentActive = document.querySelector('.nav-links a.active');
     if (currentActive && currentActive.style.display === 'none') {
         showView('kanban');
@@ -772,7 +1122,8 @@ document.getElementById('enroll-form').onsubmit = async (e) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             fase_crm: 'INSCRITO',
-            id_oferta_inscripcion: data.id_oferta_inscripcion
+            id_oferta_inscripcion: data.id_oferta_inscripcion,
+            curp: data.curp
         })
     });
     
@@ -929,21 +1280,26 @@ if (kpiForm) {
 // --- Reportes Logic ---
 
 async function loadReportes() {
-    // Populate vendedores and escuelas if not yet done
-    const vSelect = document.getElementById('filtro-vendedor');
-    if (vSelect && vSelect.options.length <= 1) {
-        const res = await fetch(`${API_BASE}/admin/usuarios`);
-        if (res.ok) {
-            const data = await res.json();
-            data.usuarios.forEach(u => {
-                if(u.rol === 'VENDEDOR' || u.rol === 'ADMIN' || u.rol === 'SUPERADMIN') {
-                    const opt = document.createElement('option');
-                    opt.value = u.id_usuario;
-                    opt.textContent = u.nombre_completo;
-                    vSelect.appendChild(opt);
-                }
-            });
+    const res = await fetch(`${API_BASE}/admin/usuarios`, {
+        headers: { 'X-Role': getCurrentRole() }
+    });
+    
+    if (res.ok) {
+        const data = await res.json();
+        const role = getCurrentRole();
+        let options = '<option value="">Cualquier Ejecutivo</option>';
+        if (role === 'VENDEDOR') {
+            const myId = getCurrentUserId();
+            const me = data.usuarios.find(u => u.id_usuario === myId);
+            if (me) {
+                options = `<option value="${me.id_usuario}">${me.nombre_completo}</option>`;
+            }
+        } else {
+            options += data.usuarios.filter(u => u.rol === 'VENDEDOR').map(u => 
+                `<option value="${u.id_usuario}">${u.nombre_completo}</option>`
+            ).join('');
         }
+        document.getElementById('filtro-vendedor').innerHTML = options;
     }
 
     const eSelect = document.getElementById('filtro-escuela');
@@ -1007,10 +1363,26 @@ async function fetchPrevisualizacionReporte() {
     });
 }
 
-function descargarReporte(formato) {
+function descargarReporte(format) {
+    // Collect form filters
     const qs = buildQueryParamsReportes();
-    const url = `${API_BASE}/reportes/prospectos/${formato}?${qs}`;
-    window.open(url, '_blank');
+    
+    // Collect checkbox
+    const allDataCheckbox = document.getElementById('report-all-data');
+    const allData = allDataCheckbox ? allDataCheckbox.checked : false;
+    
+    let url = `${API_BASE}/reportes/prospectos/${format}`;
+    url += qs ? `?${qs}` : `?`;
+    
+    const params = new URLSearchParams();
+    if (allData) params.append('all_data', 'true');
+    
+    const role = getCurrentRole();
+    const uid = getCurrentUserId();
+    params.append('uid', uid);
+    params.append('role', role);
+    
+    window.location.href = url + (url.endsWith('?') ? '' : '&') + params.toString();
 }
 
 /* --- Base de Datos Logic --- */
@@ -1061,7 +1433,8 @@ function renderDatabaseItems() {
     
     const filtered = allProspectsDB.filter(p => {
         const nameFull = p.nombre || '';
-        const matchesSearch = nameFull.toLowerCase().includes(search);
+        const curpStr = p.curp || '';
+        const matchesSearch = nameFull.toLowerCase().includes(search) || curpStr.toLowerCase().includes(search);
         const matchesVendedor = vendedorId === 'ALL' || 
                                 (vendedorId === 'NONE' && !p.id_vendedor_asignado) || 
                                 (p.id_vendedor_asignado == vendedorId);

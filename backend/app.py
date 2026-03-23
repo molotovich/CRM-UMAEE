@@ -5,7 +5,7 @@ import io
 from flask import Flask, request, session, send_file, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func, desc
-from .models import db, Prospecto, Seguimiento, Usuario, EscuelaProcedencia, OfertaAcademica, MetaVendedor, Carrera, Periodo, Turno
+from models import db, Prospecto, Seguimiento, Usuario, EscuelaProcedencia, OfertaAcademica, MetaVendedor, Carrera, Periodo, Turno
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -38,6 +38,25 @@ def create_app():
     
     with app.app_context():
         db.create_all()
+        # Ensure new columns exist in SQLite (manual migration)
+        from sqlalchemy import text
+        cols_to_check = [
+            ('carrera_interes_2', 'VARCHAR(100)'),
+            ('carrera_interes_3', 'VARCHAR(100)'),
+            ('periodo_interes', 'VARCHAR(100)'),
+            ('turno_interes', 'VARCHAR(50)'),
+            ('tutor_nombre', 'VARCHAR(255)'),
+            ('tutor_email', 'VARCHAR(150)'),
+            ('tutor_telefono', 'VARCHAR(20)'),
+            ('fecha_cita', 'DATETIME'),
+            ('curp', 'VARCHAR(18)')
+        ]
+        for col, col_type in cols_to_check:
+            try:
+                db.session.execute(text(f"ALTER TABLE prospectos ADD COLUMN {col} {col_type}"))
+                db.session.commit()
+            except:
+                db.session.rollback()
     
     @app.route('/api/login', methods=['POST'])
     def login():
@@ -116,6 +135,13 @@ def create_app():
             semestre=data.get('semestre'),
             promedio=data.get('promedio'),
             carrera_interes=data.get('carrera_interes'),
+            carrera_interes_2=data.get('carrera_interes_2'),
+            carrera_interes_3=data.get('carrera_interes_3'),
+            periodo_interes=data.get('periodo_interes'),
+            turno_interes=data.get('turno_interes'),
+            tutor_nombre=data.get('tutor_nombre'),
+            tutor_email=data.get('tutor_email'),
+            tutor_telefono=data.get('tutor_telefono'),
             origen_prospecto=data.get('origen_prospecto'),
             id_vendedor_asignado=vendedor_id
         )
@@ -142,8 +168,18 @@ def create_app():
         data = request.json
         p = Prospecto.query.get_or_404(id_prospecto)
         p.fase_crm = data['fase_crm']
-        if data['fase_crm'] == 'INSCRITO' and 'id_oferta_inscripcion' in data:
-            p.id_oferta_inscripcion = data['id_oferta_inscripcion']
+        if data['fase_crm'] == 'INSCRITO':
+            if 'id_oferta_inscripcion' in data:
+                p.id_oferta_inscripcion = data['id_oferta_inscripcion']
+            if 'curp' in data:
+                p.curp = data['curp']
+        if data['fase_crm'] == 'CITA' and 'fecha_cita' in data:
+            from datetime import datetime
+            try:
+                # Expecting ISO format from JS
+                p.fecha_cita = datetime.fromisoformat(data['fecha_cita'])
+            except:
+                pass
         db.session.commit()
         return p.to_dict()
 
@@ -199,6 +235,13 @@ def create_app():
         p.semestre = data.get('semestre', p.semestre)
         p.promedio = data.get('promedio', p.promedio)
         p.carrera_interes = data.get('carrera_interes', p.carrera_interes)
+        p.carrera_interes_2 = data.get('carrera_interes_2', p.carrera_interes_2)
+        p.carrera_interes_3 = data.get('carrera_interes_3', p.carrera_interes_3)
+        p.periodo_interes = data.get('periodo_interes', p.periodo_interes)
+        p.turno_interes = data.get('turno_interes', p.turno_interes)
+        p.tutor_nombre = data.get('tutor_nombre', p.tutor_nombre)
+        p.tutor_email = data.get('tutor_email', p.tutor_email)
+        p.tutor_telefono = data.get('tutor_telefono', p.tutor_telefono)
         p.origen_prospecto = data.get('origen_prospecto', p.origen_prospecto)
         
         db.session.commit()
@@ -588,9 +631,16 @@ def create_app():
 
     @app.route('/api/reportes/prospectos', methods=['GET'])
     def get_reporte_prospectos():
+        user_role = request.headers.get('X-Role') or request.args.get('role')
+        user_id = request.headers.get('X-User-Id') or request.args.get('uid')
         
         fase = request.args.get('fase')
         id_vendedor = request.args.get('id_vendedor')
+        
+        # Restriction for Vendedores
+        if user_role == 'VENDEDOR':
+            id_vendedor = user_id
+            
         id_escuela = request.args.get('id_escuela')
         promedio_min = request.args.get('promedio_min')
         promedio_max = request.args.get('promedio_max')
@@ -631,13 +681,29 @@ def create_app():
         
         response = get_reporte_prospectos()
         data = response.get('prospectos', [])
+        all_data_flag = request.args.get('all_data') == 'true'
         
         df = pd.DataFrame(data)
         if not df.empty:
-            cols_to_keep = ['id_prospecto', 'nombre_solo', 'apellido_paterno', 'apellido_materno', 'fase_crm', 'escuela', 'carrera_interes', 'promedio', 'vendedor_nombre', 'ultimo_seguimiento', 'telefono', 'email']
-            existing_cols = [c for c in cols_to_keep if c in df.columns]
-            df = df[existing_cols]
-            df.columns = ['ID', 'Nombre', 'Apellido Pat.', 'Apellido Mat.', 'Fase', 'Escuela', 'Carrera Interés', 'Promedio', 'Vendedor', 'Último Seg.', 'Teléfono', 'Email']
+            if all_data_flag:
+                cols_to_keep = [
+                    'id_prospecto', 'nombre', 'curp', 'fase_crm', 'escuela', 'carrera_interes', 
+                    'carrera_interes_2', 'carrera_interes_3', 'promedio', 'semestre', 'turno', 
+                    'periodo_interes', 'turno_interes', 'telefono', 'email', 'vendedor_nombre', 
+                    'tutor_nombre', 'tutor_email', 'tutor_telefono', 'fecha_cita', 'ultimo_seguimiento'
+                ]
+                df = df[cols_to_keep]
+                df.columns = [
+                    'ID', 'Nombre Completo', 'CURP', 'Fase', 'Escuela Origen', 'Carrera 1', 
+                    'Carrera 2', 'Carrera 3', 'Promedio', 'Semestre', 'Turno Origen', 
+                    'Ciclo Interés', 'Turno Interés', 'Teléfono', 'Email', 'Vendedor', 
+                    'Nombre Tutor', 'Email Tutor', 'Tel. Tutor', 'Fecha Cita', 'Último Seg.'
+                ]
+            else:
+                cols_to_keep = ['id_prospecto', 'nombre_solo', 'apellido_paterno', 'apellido_materno', 'fase_crm', 'escuela', 'carrera_interes', 'promedio', 'vendedor_nombre', 'ultimo_seguimiento', 'telefono', 'email']
+                existing_cols = [c for c in cols_to_keep if c in df.columns]
+                df = df[existing_cols]
+                df.columns = ['ID', 'Nombre', 'Apellido Pat.', 'Apellido Mat.', 'Fase', 'Escuela', 'Carrera Interés', 'Promedio', 'Vendedor', 'Último Seg.', 'Teléfono', 'Email']
         
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -651,44 +717,69 @@ def create_app():
         
         response = get_reporte_prospectos()
         data = response.get('prospectos', [])
+        all_data_flag = request.args.get('all_data') == 'true'
         
         output = io.BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(letter))
         elements = []
         
         styles = getSampleStyleSheet()
-        elements.append(Paragraph("Reporte de Prospectos", styles['Title']))
+        elements.append(Paragraph("Reporte de Prospectos (Completo)" if all_data_flag else "Reporte de Prospectos", styles['Title']))
         elements.append(Spacer(1, 12))
         
-        table_data = [['ID', 'Nombre', 'Apellido', 'Fase', 'Escuela', 'Carrera', 'Promedio', 'Vendedor', 'Último Seg.']]
+        if all_data_flag:
+            table_data = [['ID', 'Nombre', 'CURP', 'Fase', 'Escuela', 'Carrera', 'C. 2', 'C. 3', 'Prom.', 'Teléfono', 'Email', 'Vendedor', 'Tutor', 'Tel. Tutor', 'Cita', 'Ult. Seg.']]
+        else:
+            table_data = [['ID', 'Nombre', 'Apellido', 'Fase', 'Escuela', 'Carrera', 'Promedio', 'Vendedor', 'Último Seg.']]
         
         for p in data:
             def trunc(s, l=15):
                 return (str(s)[:l] + '...') if s and len(str(s)) > l else str(s or '')
                 
-            row = [
-                str(p.get('id_prospecto', '')),
-                trunc(p.get('nombre_solo', '')),
-                trunc(p.get('apellido_paterno', '')),
-                trunc(p.get('fase_crm', '')),
-                trunc(p.get('escuela', ''), 20),
-                trunc(p.get('carrera_interes', '')),
-                str(p.get('promedio') or ''),
-                trunc(p.get('vendedor_nombre', '')),
-                trunc(p.get('ultimo_seguimiento', '')[:10] if p.get('ultimo_seguimiento') else '')
-            ]
+            if all_data_flag:
+                row = [
+                    str(p.get('id_prospecto', '')),
+                    trunc(p.get('nombre_solo', ''), 10),
+                    trunc(p.get('curp', ''), 8),
+                    trunc(p.get('fase_crm', ''), 8),
+                    trunc(p.get('escuela', ''), 10),
+                    trunc(p.get('carrera_interes', ''), 8),
+                    trunc(p.get('carrera_interes_2', ''), 8),
+                    trunc(p.get('carrera_interes_3', ''), 8),
+                    str(p.get('promedio') or ''),
+                    trunc(p.get('telefono', ''), 10),
+                    trunc(p.get('email', ''), 12),
+                    trunc(p.get('vendedor_nombre', ''), 10),
+                    trunc(p.get('tutor_nombre', ''), 10),
+                    trunc(p.get('tutor_telefono', ''), 10),
+                    trunc(p.get('fecha_cita', '')[:10] if p.get('fecha_cita') else '', 10),
+                    trunc(p.get('ultimo_seguimiento', '')[:10] if p.get('ultimo_seguimiento') else '', 10)
+                ]
+            else:
+                row = [
+                    str(p.get('id_prospecto', '')),
+                    trunc(p.get('nombre_solo', '')),
+                    trunc(p.get('apellido_paterno', '')),
+                    trunc(p.get('fase_crm', '')),
+                    trunc(p.get('escuela', ''), 20),
+                    trunc(p.get('carrera_interes', '')),
+                    str(p.get('promedio') or ''),
+                    trunc(p.get('vendedor_nombre', '')),
+                    trunc(p.get('ultimo_seguimiento', '')[:10] if p.get('ultimo_seguimiento') else '')
+                ]
             table_data.append(row)
             
         t = Table(table_data)
+        font_size = 5 if all_data_flag else 8
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.Color(0.2, 0.4, 0.6)),
             ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0,0), (-1,0), 12),
+            ('BOTTOMPADDING', (0,0), (-1,0), 6 if all_data_flag else 12),
             ('BACKGROUND', (0,1), (-1,-1), colors.white),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ('FONTSIZE', (0,0), (-1,-1), 8),
+            ('FONTSIZE', (0,0), (-1,-1), font_size),
         ]))
         
         elements.append(t)

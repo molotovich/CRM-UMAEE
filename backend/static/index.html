@@ -44,7 +44,16 @@
             <a href="#" onclick="showView('kpi')" id="nav-kpi">KPIs</a>
         </div>
         <div class="actions">
+            <!-- Developer Role Switcher -->
+            <select id="dev-role-switcher" style="display:none; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 5px 10px; margin-right: 1rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; outline: none;" onchange="mimicRole(this.value)">
+                <option value="SUPERADMIN">Modo: SUPERADMIN</option>
+                <option value="ADMIN">Modo: ADMIN</option>
+                <option value="VENDEDOR">Modo: VENDEDOR</option>
+            </select>
+            
             <span id="user-display-name" style="margin-right: 1rem; font-weight: 600; color: var(--text-color);"></span>
+            <button class="btn-icon" onclick="forceSyncCache()" title="Sincronizar y Refrescar" style="margin-right: 0.5rem; background: rgba(0,0,0,0.1); border-radius: 50%; width: 32px; height: 32px;">🔄</button>
+            <button class="btn-icon" onclick="toggleTheme()" title="Cambiar tema" style="margin-right: 0.5rem; background: rgba(0,0,0,0.1); border-radius: 50%; width: 32px; height: 32px;">🌓</button>
             <button class="btn-secondary" onclick="logout()" style="margin-right: 1rem;">Salir</button>
             <button class="btn-primary" onclick="openNewProspectModal()">+ Nuevo Prospecto</button>
         </div>
@@ -52,32 +61,105 @@
 
     <!-- Kanban View -->
     <div class="view-container" id="view-kanban">
+
         <div class="kanban-container" id="kanban">
             <div class="kanban-column" data-fase="NUEVO">
                 <div class="column-header">
-                    <span>Nuevo</span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span>Nuevo</span>
+                        <input type="text" class="quick-search-input" placeholder="Nombre/Escuela..." oninput="updateColumnFilter('NUEVO', 'q', this.value)">
+                        <button class="btn-icon" onclick="toggleColumnFilter('NUEVO')" title="Filtros avanzados">🔍</button>
+                    </div>
                     <span class="badge" id="count-NUEVO">0</span>
+                </div>
+                <div id="filter-NUEVO" class="column-filter-panel" style="display:none;">
+                    <select onchange="updateColumnFilter('NUEVO', 'semestre', this.value)">
+                        <option value="">Semestre (Cualquier)</option>
+                        <option value="1">1ro</option><option value="2">2do</option><option value="3">3ro</option>
+                        <option value="4">4to</option><option value="5">5to</option><option value="6">6to</option>
+                    </select>
+                    <select onchange="updateColumnFilter('NUEVO', 'turno', this.value)">
+                        <option value="">Turno (Cualquier)</option>
+                        <option value="MATUTINO">Matutino</option>
+                        <option value="VESPERTINO">Vespertino</option>
+                    </select>
+                    <select id="filter-ciclo-NUEVO" onchange="updateColumnFilter('NUEVO', 'ciclo', this.value)">
+                        <option value="">Ciclo (Cualquier)</option>
+                    </select>
+                    <div style="display: flex; gap: 0.2rem;">
+                        <input type="number" placeholder="Promedio Min" step="0.1" oninput="updateColumnFilter('NUEVO', 'promedioMin', this.value)">
+                    </div>
+
                 </div>
                 <div id="cards-NUEVO"></div>
             </div>
+            
             <div class="kanban-column" data-fase="CONTACTADO">
                 <div class="column-header">
-                    <span>Contactado</span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span>Contactado</span>
+                        <input type="text" class="quick-search-input" placeholder="Nombre/Escuela..." oninput="updateColumnFilter('CONTACTADO', 'q', this.value)">
+                        <button class="btn-icon" onclick="toggleColumnFilter('CONTACTADO')" title="Filtros avanzados">🔍</button>
+                    </div>
                     <span class="badge" id="count-CONTACTADO">0</span>
+                </div>
+                <div id="filter-CONTACTADO" class="column-filter-panel" style="display:none;">
+                    <select onchange="updateColumnFilter('CONTACTADO', 'semestre', this.value)">
+                        <option value="">Semestre (Cualquier)</option>
+                        <option value="1">1ro</option><option value="2">2do</option><option value="3">3ro</option>
+                        <option value="4">4to</option><option value="5">5to</option><option value="6">6to</option>
+                    </select>
+                    <select onchange="updateColumnFilter('CONTACTADO', 'turno', this.value)">
+                        <option value="">Turno (Cualquier)</option>
+                        <option value="MATUTINO">Matutino</option>
+                        <option value="VESPERTINO">Vespertino</option>
+                    </select>
+                    <select id="filter-ciclo-CONTACTADO" onchange="updateColumnFilter('CONTACTADO', 'ciclo', this.value)">
+                        <option value="">Ciclo (Cualquier)</option>
+                    </select>
+                    <div style="display: flex; gap: 0.2rem;">
+                        <input type="number" placeholder="Promedio Min" step="0.1" oninput="updateColumnFilter('CONTACTADO', 'promedioMin', this.value)">
+                    </div>
+
                 </div>
                 <div id="cards-CONTACTADO"></div>
             </div>
+
             <div class="kanban-column" data-fase="CITA">
                 <div class="column-header">
-                    <span>Cita</span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span>Cita</span>
+                        <input type="text" class="quick-search-input" placeholder="Nombre/Escuela..." oninput="updateColumnFilter('CITA', 'q', this.value)">
+                        <button class="btn-icon" id="btn-sort-cita" onclick="toggleCitaSort()" title="Ordenar por proximidad">⇅</button>
+                        <button class="btn-icon" onclick="toggleColumnFilter('CITA')" title="Filtros avanzados">📅</button>
+                    </div>
                     <span class="badge" id="count-CITA">0</span>
+                </div>
+                <div id="filter-CITA" class="column-filter-panel" style="display:none;">
+                    <label style="font-size: 0.65rem; opacity: 0.7;">Por Fecha:</label>
+                    <input type="date" id="filter-cita-date" onchange="fetchProspectos()" style="margin-bottom: 5px;">
+                    <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 5px 0;">
+                    <button class="btn-secondary" style="width: 100%; font-size: 0.7rem; margin-bottom: 5px;" onclick="updateColumnFilter('CITA', 'timing', 'TODAY')">Hoy</button>
+                    <button class="btn-secondary" style="width: 100%; font-size: 0.7rem; margin-bottom: 5px;" onclick="updateColumnFilter('CITA', 'timing', 'FUTURE')">Próximas</button>
+                    <button class="btn-secondary" style="width: 100%; font-size: 0.7rem; margin-bottom: 5px;" onclick="updateColumnFilter('CITA', 'timing', 'PAST')">Pasadas</button>
+                    <button class="btn-secondary" style="width: 100%; font-size: 0.7rem;" onclick="document.getElementById('filter-cita-date').value=''; updateColumnFilter('CITA', 'timing', '')">Restablecer</button>
                 </div>
                 <div id="cards-CITA"></div>
             </div>
+
             <div class="kanban-column" data-fase="INSCRITO">
                 <div class="column-header">
-                    <span>Inscrito</span>
+                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span>Inscrito</span>
+                        <input type="text" class="quick-search-input" placeholder="Nombre/Escuela..." oninput="updateColumnFilter('INSCRITO', 'q', this.value)">
+                        <button class="btn-icon" onclick="toggleColumnFilter('INSCRITO')" title="Filtros avanzados">🔍</button>
+                    </div>
                     <span class="badge" id="count-INSCRITO">0</span>
+                </div>
+                <div id="filter-INSCRITO" class="column-filter-panel" style="display:none;">
+                    <select id="filter-ciclo-INSCRITO" onchange="updateColumnFilter('INSCRITO', 'ciclo', this.value)">
+                        <option value="">Ciclo (Cualquier)</option>
+                    </select>
                 </div>
                 <div id="cards-INSCRITO"></div>
             </div>
@@ -150,46 +232,53 @@
             </div>
         </div>
 
-        <div id="oferta-config-container" style="display: none;">
-            <div class="grid-3col" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                <div class="glass-card table-container">
-                    <h3>Carreras</h3>
-                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-                        <input type="text" id="nueva-carrera-input" placeholder="Nombre de carrera">
-                        <button class="btn-secondary" onclick="crearCarrera()">Agregar</button>
+        <div id="oferta-config-container" class="glass-card form-container" style="display: none; margin-bottom: 2rem; padding: 1.5rem;">
+            <h3>Configuración de Carrera, Periodos y Turnos</h3>
+            <div class="grid-3col" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
+                <div>
+                    <h4>Carreras</h4>
+                    <div class="input-with-button" style="margin: 1rem 0;">
+                        <input type="text" id="nueva-carrera-input" placeholder="Nombre...">
+                        <button class="btn-secondary" onclick="crearCarrera()">Add</button>
                     </div>
-                    <table>
-                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
-                        <tbody id="carreras-table-body"></tbody>
-                    </table>
+                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                        <table style="font-size: 0.8rem;">
+                            <thead><tr><th>Nombre</th></tr></thead>
+                            <tbody id="carreras-table-body"></tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="glass-card table-container">
-                    <h3>Periodos</h3>
-                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-                        <input type="text" id="nuevo-periodo-input" placeholder="Nombre de periodo">
-                        <button class="btn-secondary" onclick="crearPeriodo()">Agregar</button>
+                <div>
+                    <h4>Periodos</h4>
+                    <div class="input-with-button" style="margin: 1rem 0;">
+                        <input type="text" id="nuevo-periodo-input" placeholder="Nombre...">
+                        <button class="btn-secondary" onclick="crearPeriodo()">Add</button>
                     </div>
-                    <table>
-                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
-                        <tbody id="periodos-table-body"></tbody>
-                    </table>
+                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                        <table style="font-size: 0.8rem;">
+                            <thead><tr><th>Nombre</th></tr></thead>
+                            <tbody id="periodos-table-body"></tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="glass-card table-container">
-                    <h3>Turnos</h3>
-                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;" id="turno-add-container">
-                        <input type="text" id="nuevo-turno-input" placeholder="Nombre de turno">
-                        <button class="btn-secondary" onclick="crearTurno()">Agregar</button>
+                <div>
+                    <h4>Turnos</h4>
+                    <div class="input-with-button" id="turno-add-container" style="margin: 1rem 0; display: flex;">
+                        <input type="text" id="nuevo-turno-input" placeholder="Nombre...">
+                        <button class="btn-secondary" onclick="crearTurno()">Add</button>
                     </div>
-                    <table>
-                        <thead><tr><th>ID</th><th>Nombre</th></tr></thead>
-                        <tbody id="turnos-table-body"></tbody>
-                    </table>
+                    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                        <table style="font-size: 0.8rem;">
+                            <thead><tr><th>Nombre</th></tr></thead>
+                            <tbody id="turnos-table-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="glass-card table-container scrollable-table" style="margin-top: 2rem;">
-            <h3>Costos por Programa (Ofertas)</h3>
+        <h3 class="view-subtitle">Costos por Programa (Ofertas)</h3>
+        <div class="glass-card table-container scrollable-table">
             <table>
                 <thead>
                     <tr>
@@ -261,17 +350,25 @@
             </div>
         </div>
         
-        <div class="glass-card table-container scrollable-table">
-            <div style="padding: 1rem; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin:0;">Asignación de Ejecutivos</h3>
-                <div style="display: flex; gap: 0.5rem;">
-                   <input type="text" id="db-search-input" placeholder="Buscar por nombre..." oninput="renderDatabaseItems()" style="padding: 0.4rem;">
-                   <select id="db-vendedor-filter" onchange="renderDatabaseItems()" style="padding: 0.4rem;">
-                       <option value="ALL">Cualquier Ejecutivo</option>
-                       <option value="NONE">Sin Asignar</option>
-                   </select>
+        <div class="glass-card form-container" style="margin-bottom: 2rem;">
+            <h3>Filtros de Búsqueda</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Buscar por nombre, correo o teléfono</label>
+                    <input type="text" id="db-search-input" placeholder="Escribe para buscar..." oninput="renderDatabaseItems()">
+                </div>
+                <div class="form-group">
+                    <label>Ejecutivo Asignado</label>
+                    <select id="db-vendedor-filter" onchange="renderDatabaseItems()">
+                        <option value="ALL">Cualquier Ejecutivo</option>
+                        <option value="NONE">Sin Asignar</option>
+                    </select>
                 </div>
             </div>
+        </div>
+
+        <h3 class="view-subtitle">Asignación y Control de Prospectos</h3>
+        <div class="glass-card table-container scrollable-table">
             <table>
                 <thead>
                     <tr>
@@ -293,10 +390,16 @@
     <div class="view-container" id="view-reportes" style="display:none;">
         <div class="section-header">
             <h1>Generación de Reportes</h1>
-            <div style="display: flex; gap: 0.5rem;">
-                <button class="btn-primary" onclick="descargarReporte('excel')">Descargar Excel</button>
-                <button class="btn-primary" onclick="descargarReporte('pdf')">Descargar PDF</button>
-                <button class="btn-secondary" onclick="window.print()">Imprimir</button>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <input type="checkbox" id="report-all-data" style="width: 14px; height: 14px; cursor: pointer;">
+                    <label for="report-all-data" style="margin: 0; cursor: pointer; opacity: 0.9;">Descargar todos los datos (CURP, Tutor, etc.)</label>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-primary" onclick="descargarReporte('excel')">Descargar Excel</button>
+                    <button class="btn-primary" onclick="descargarReporte('pdf')">Descargar PDF</button>
+                    <button class="btn-secondary" onclick="window.print()">Imprimir</button>
+                </div>
             </div>
         </div>
         
@@ -342,6 +445,7 @@
                     <label>Último Seguimiento (Hasta)</label>
                     <input type="date" id="filtro-fecha-fin" name="fecha_fin">
                 </div>
+
                 <div class="form-actions" style="grid-column: 1 / -1; display: flex; justify-content: flex-end;">
                     <button type="button" class="btn-secondary" onclick="document.getElementById('filtro-reportes-form').reset(); fetchPrevisualizacionReporte()">Limpiar Filtros</button>
                     <button type="button" class="btn-primary" onclick="fetchPrevisualizacionReporte()">Aplicar Filtros</button>
@@ -349,8 +453,8 @@
             </form>
         </div>
 
+        <h3 class="view-subtitle">Previsualización de Datos</h3>
         <div class="glass-card table-container">
-            <h3>Previsualización</h3>
             <table>
                 <thead>
                     <tr>
@@ -461,6 +565,10 @@
                 <h2>Inscribir Prospecto</h2>
                 <form id="enroll-form">
                     <div class="form-group">
+                        <label>CURP</label>
+                        <input type="text" name="curp" placeholder="CURP (18 caracteres)" maxlength="18" required pattern="[A-Z]{4}[0-9]{6}[H,M][A-Z]{5}[A-Z0-9]{2}" title="CURP inválido">
+                    </div>
+                    <div class="form-group">
                         <label>Seleccionar Oferta Académica</label>
                         <select name="id_oferta_inscripcion" id="enroll-oferta-select" required>
                             <!-- Options populated by JS -->
@@ -496,6 +604,22 @@
                     </div>
                 </form>
             </div>
+            <div id="modal-cita" style="display:none; max-width: 400px; padding: 20px;">
+                <h2>Agendar Cita</h2>
+                <form id="cita-form">
+                    <div class="form-group">
+                        <label>Fecha de la Cita</label>
+                        <input type="date" name="fecha" id="cita-date-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Hora de la Cita</label>
+                        <input type="time" name="hora" id="cita-time-input" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" style="width: 100%;">Programar y Mover a Cita</button>
+                    </div>
+                </form>
+            </div>
             <div id="modal-new-prospect" style="display:none;">
                 <h2>Nuevo Prospecto</h2>
                 <form id="new-prospect-form" class="prospect-form-grid">
@@ -505,7 +629,7 @@
                     </div>
                     <div class="form-group">
                         <label>Apellido Paterno</label>
-                        <input type="text" name="apellido_paterno" placeholder="Apellido Paterno" required>
+                        <input type="text" name="apellido_paterno" placeholder="Apellido Paterno">
                     </div>
                     <div class="form-group">
                         <label>Apellido Materno</label>
@@ -513,30 +637,31 @@
                     </div>
                     <div class="form-group">
                         <label>Sexo</label>
-                        <select name="sexo" required>
+                        <select name="sexo">
                             <option value="M">Masculino</option>
                             <option value="F">Femenino</option>
                             <option value="OTRO">Otro</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Fecha de Captura</label>
-                        <input type="date" name="fecha_captura" id="field-fecha-captura" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Turno</label>
-                        <select name="turno" required>
-                            <option value="MATUTINO">Matutino</option>
-                            <option value="VESPERTINO">Vespertino</option>
-                        </select>
+                        <label>Email</label>
+                        <input type="email" name="email" placeholder="Email">
                     </div>
                     <div class="form-group">
                         <label>Teléfono</label>
                         <input type="text" name="telefono" placeholder="Teléfono">
                     </div>
+                    
                     <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" placeholder="Email">
+                        <label>Fecha de Captura</label>
+                        <input type="date" name="fecha_captura" id="field-fecha-captura" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Turno Actual</label>
+                        <select name="turno">
+                            <option value="MATUTINO">Matutino</option>
+                            <option value="VESPERTINO">Vespertino</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Escuela de Procedencia</label>
@@ -547,29 +672,102 @@
                         <input type="hidden" name="id_escuela" id="hidden-id-escuela">
                         <datalist id="escuelas-list"></datalist>
                     </div>
+
                     <div class="form-group">
                         <label>Semestre</label>
-                        <input type="number" name="semestre" placeholder="Semestre" min="1" max="12">
+                        <input type="number" name="semestre" placeholder="Semestre" min="1" max="12" required>
                     </div>
                     <div class="form-group">
                         <label>Promedio</label>
                         <input type="number" name="promedio" placeholder="Promedio" step="0.1" min="0" max="10">
                     </div>
-                    <div class="form-group full-width">
-                        <label>Carrera de Interés</label>
-                        <input type="text" name="carrera_interes" placeholder="Carrera de Interés">
-                    </div>
-                    <div class="form-group full-width">
+                    <div class="form-group">
                         <label>Origen del Prospecto</label>
-                        <select name="origen_prospecto" required>
+                        <select name="origen_prospecto">
                             <option value="WEB">Web</option>
                             <option value="SALONEO">Saloneo</option>
                             <option value="VISITA A INSTALACIONES">Visita a Instalaciones</option>
                             <option value="TELEFONO">Teléfono</option>
+                            <option value="REDES SOCIALES">Redes Sociales</option>
+                            <option value="RECOMENDACION">Recomendación</option>
+                            <option value="FERIA">Feria</option>
+                            <option value="CENTRO">Centro</option>
                         </select>
                     </div>
+
+                    <div class="form-group full-width" style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px;">
+                        <label style="font-size: 1rem; color: var(--accent); margin-bottom: 1rem; display: block;">Oferta de Interés</label>
+                        <div class="prospect-form-grid" style="grid-column: span 3;">
+                            <div class="form-group" style="grid-column: span 3;">
+                                <label>Carreras de Interés (Máximo 3)</label>
+                                <div id="carreras-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <div class="carrera-option-row">
+                                        <select name="carrera_interes" id="carrera-select-1" onchange="toggleOtroManual(1)">
+                                            <option value="">-- Seleccionar Primera Opción --</option>
+                                            <option value="OTRO">OTRA (Capturar manualmente)</option>
+                                        </select>
+                                        <input type="text" name="carrera_interes_manual_1" id="carrera-manual-1" placeholder="Escribe la carrera..." style="display:none; margin-top: 5px;">
+                                    </div>
+                                    <div id="carrera-row-2" style="display: none;">
+                                        <div class="carrera-option-row">
+                                            <select name="carrera_interes_2" id="carrera-select-2" onchange="toggleOtroManual(2)">
+                                                <option value="">-- Seleccionar Segunda Opción --</option>
+                                                <option value="OTRO">OTRA (Capturar manualmente)</option>
+                                            </select>
+                                            <input type="text" name="carrera_interes_manual_2" id="carrera-manual-2" placeholder="Escribe la carrera..." style="display:none; margin-top: 5px;">
+                                        </div>
+                                    </div>
+                                    <div id="carrera-row-3" style="display: none;">
+                                        <div class="carrera-option-row">
+                                            <select name="carrera_interes_3" id="carrera-select-3" onchange="toggleOtroManual(3)">
+                                                <option value="">-- Seleccionar Tercera Opción --</option>
+                                                <option value="OTRO">OTRA (Capturar manualmente)</option>
+                                            </select>
+                                            <input type="text" name="carrera_interes_manual_3" id="carrera-manual-3" placeholder="Escribe la carrera..." style="display:none; margin-top: 5px;">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button type="button" id="btn-add-carrera-2" class="btn-secondary" style="font-size: 0.75rem;" onclick="document.getElementById('carrera-row-2').style.display='block'; this.style.display='none'">+ Segunda Opción</button>
+                                        <button type="button" id="btn-add-carrera-3" class="btn-secondary" style="font-size: 0.75rem; display: none;" onclick="document.getElementById('carrera-row-3').style.display='block'; this.style.display='none'">+ Tercera Opción</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Ciclo de Interés</label>
+                                <select name="periodo_interes" id="periodo-interes-select">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Turno de Interés</label>
+                                <select name="turno_interes" id="turno-interes-select">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="full-width">
+                        <button type="button" id="btn-toggle-tutor" class="btn-secondary" onclick="toggleTutorSection()">+ Agregar Información del Tutor (Opcional)</button>
+                    </div>
+
+                    <div id="tutor-section" class="prospect-form-grid full-width" style="display: none; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px;">
+                        <div class="form-group">
+                            <label>Nombre del Tutor</label>
+                            <input type="text" name="tutor_nombre" placeholder="Nombre completo">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono del Tutor</label>
+                            <input type="text" name="tutor_telefono" placeholder="Teléfono">
+                        </div>
+                        <div class="form-group">
+                            <label>Email del Tutor</label>
+                            <input type="email" name="tutor_email" placeholder="Email">
+                        </div>
+                    </div>
+
                     <div class="form-actions full-width">
-                        <button type="submit" class="btn-primary">Guardar Prospecto</button>
+                        <button type="submit" class="btn-primary" style="width: 100%; padding: 1rem;">Guardar Prospecto</button>
                     </div>
                 </form>
             </div>

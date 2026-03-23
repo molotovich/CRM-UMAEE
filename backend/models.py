@@ -123,6 +123,7 @@ class Prospecto(db.Model):
     apellido_paterno = db.Column(db.String(100), nullable=False)
     apellido_materno = db.Column(db.String(100))
     sexo = db.Column(db.String(20)) # M / F / OTRO
+    curp = db.Column(db.String(18))
     fecha_captura = db.Column(db.Date) # Date of data entry
     turno = db.Column(db.String(50)) # MATUTINO / VESPERTINO
     email = db.Column(db.String(150), index=True)
@@ -130,7 +131,15 @@ class Prospecto(db.Model):
     id_escuela = db.Column(db.Integer, db.ForeignKey('crm_escuelas.id_escuela'))
     semestre = db.Column(db.Integer)
     promedio = db.Column(db.Float)
-    carrera_interes = db.Column(db.String(100)) # Changed to String for flexibility
+    carrera_interes = db.Column(db.String(100))
+    carrera_interes_2 = db.Column(db.String(100))
+    carrera_interes_3 = db.Column(db.String(100))
+    periodo_interes = db.Column(db.String(100))
+    turno_interes = db.Column(db.String(50))
+    tutor_nombre = db.Column(db.String(255))
+    tutor_email = db.Column(db.String(150))
+    tutor_telefono = db.Column(db.String(20))
+    fecha_cita = db.Column(db.DateTime)
     fase_crm = db.Column(db.String(50), default='NUEVO', index=True)
     origen_prospecto = db.Column(db.String(50))
     id_vendedor_asignado = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'), index=True)
@@ -153,6 +162,7 @@ class Prospecto(db.Model):
             'apellido_paterno': self.apellido_paterno,
             'apellido_materno': self.apellido_materno,
             'sexo': self.sexo,
+            'curp': self.curp,
             'fecha_captura': self.fecha_captura.isoformat() if self.fecha_captura else None,
             'turno': self.turno,
             'email': self.email,
@@ -162,6 +172,13 @@ class Prospecto(db.Model):
             'semestre': self.semestre,
             'promedio': self.promedio,
             'carrera_interes': self.carrera_interes,
+            'carrera_interes_2': self.carrera_interes_2,
+            'carrera_interes_3': self.carrera_interes_3,
+            'periodo_interes': self.periodo_interes,
+            'turno_interes': self.turno_interes,
+            'tutor_nombre': self.tutor_nombre,
+            'tutor_email': self.tutor_email,
+            'tutor_telefono': self.tutor_telefono,
             'fase_crm': self.fase_crm,
             'origen_prospecto': self.origen_prospecto,
             'id_vendedor_asignado': self.id_vendedor_asignado,
@@ -169,6 +186,7 @@ class Prospecto(db.Model):
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
             'razon_perdido': self.razon_perdido,
             'ultimo_seguimiento': ultimo,
+            'fecha_cita': self.fecha_cita.isoformat() if self.fecha_cita else None,
             'id_oferta_inscripcion': self.id_oferta_inscripcion,
             'oferta_carrera': self.oferta_inscripcion.carrera.nombre if self.oferta_inscripcion and self.oferta_inscripcion.carrera else None,
             'oferta_periodo': self.oferta_inscripcion.periodo.nombre if self.oferta_inscripcion and self.oferta_inscripcion.periodo else None,

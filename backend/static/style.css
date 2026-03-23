@@ -19,6 +19,79 @@ body {
     color: var(--text-main);
     min-height: 100vh;
     padding: 2rem;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+body.light-mode {
+    --bg-deep: #f1f5f9;
+    --bg-card: #ffffff;
+    --accent: #4f46e5;
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode {
+    background: radial-gradient(circle at top left, #f8fafc, #e2e8f0);
+}
+
+body.light-mode .kanban-column {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .column-header {
+    color: var(--text-main);
+}
+
+body.light-mode .quick-search-input {
+    background: #ffffff;
+    color: var(--text-main);
+    border-color: #cbd5e1;
+}
+
+body.light-mode .quick-search-input::placeholder {
+    color: #94a3b8;
+}
+
+body.light-mode .badge {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+body.light-mode input, body.light-mode select, body.light-mode textarea {
+    background: #ffffff;
+    color: var(--text-main);
+    border-color: #cbd5e1;
+}
+
+body.light-mode .semaforo-ok { background: #dcfce7; border-color: #22c55e; color: #166534; }
+body.light-mode .semaforo-hoy { background: #fef9c3; border-color: #eab308; color: #854d0e; }
+body.light-mode .semaforo-alert { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+
+.view-subtitle {
+    margin: 2rem 0 1rem 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid var(--accent);
+    padding-left: 1rem;
+}
+
+.glass-card h3 {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    color: var(--accent);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+body.light-mode .glass-card h3 {
+    color: var(--text-main);
 }
 
 .glass-card {
@@ -92,6 +165,7 @@ body {
 
 .view-container {
     animation: fadeIn 0.3s ease-in-out;
+    margin-top: 1.5rem;
 }
 
 @keyframes fadeIn {
@@ -103,7 +177,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 2rem;
 }
 
 .table-container {
@@ -135,13 +209,27 @@ tr:hover {
 }
 
 .btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
+    background: #475569;
     color: white;
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
     font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #64748b;
+}
+
+body.light-mode .btn-secondary {
+    background: #cbd5e1;
+    color: #0f172a;
+}
+
+body.light-mode .btn-secondary:hover {
+    background: #94a3b8;
 }
 
 .brand {
@@ -225,12 +313,28 @@ tr:hover {
 }
 
 .badge {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 9999px;
     font-size: 0.7rem;
-    background: rgba(99, 102, 241, 0.2);
+    background: #ffffff;
     color: var(--accent);
     border: 1px solid var(--accent);
+    font-weight: 700;
+}
+
+body.light-mode .badge {
+    background: #ffffff;
+    color: var(--accent);
+    border-color: var(--border-color);
+}
+
+.table-row-select {
+    padding: 0.4rem;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    font-size: 0.85rem;
 }
 
 .btn-primary {
@@ -267,7 +371,9 @@ tr:hover {
 
 .modal-content {
     width: 95%;
-    max-width: 800px;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-content h2 { margin-bottom: 1.5rem; }
@@ -280,7 +386,7 @@ form {
 
 .prospect-form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
 }
 
@@ -297,7 +403,7 @@ form {
 }
 
 .full-width {
-    grid-column: span 2;
+    grid-column: span 3;
 }
 
 .form-actions {
@@ -420,3 +526,162 @@ div.table-container.scrollable-table {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Appointment Styles */
+.prospect-card-cita {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.cita-info {
+    border-left: 1px solid var(--glass-border);
+    padding-left: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    font-size: 0.65rem;
+}
+
+.semaforo-ok { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80; }
+.semaforo-hoy { background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #fde047; }
+.semaforo-alert { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
+
+.semaforo-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+.semaforo-dot.ok { background: #22c55e; }
+.semaforo-dot.hoy { background: #eab308; }
+.semaforo-dot.alert { background: #ef4444; }
+
+.kanban-filter-container {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.column-filter-panel {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    border: 1px solid var(--glass-border);
+}
+
+.column-filter-panel select, .column-filter-panel input {
+    width: 100%;
+    padding: 0.3rem;
+    font-size: 0.75rem;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    color: white;
+    border-radius: 4px;
+}
+
+.quick-search-input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    color: white;
+    width: 60px;
+    transition: width 0.3s ease;
+}
+
+.quick-search-input:focus {
+    width: 120px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* --- PRINT STYLES --- */
+@media print {
+    /* Hide navigation and elements not meant for printing */
+    .navbar,
+    .section-header button,
+    .section-header .btn-primary,
+    .section-header .btn-secondary,
+    .section-header div[style*="display: flex; gap: 1rem"],
+    #filtro-reportes-form,
+    .kanban-filter-container,
+    .column-filter-panel,
+    .btn-icon {
+        display: none !important;
+    }
+
+    /* Force white background and black text on body */
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Reset view containers to flow naturally on page */
+    .view-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        position: static !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .main-content {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Remove glass effects, borders and shadows for print */
+    .glass-card,
+    .form-container,
+    .table-container {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: black !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* Style titles */
+    h1, h2, h3.view-subtitle {
+        color: black !important;
+        margin-bottom: 10px !important;
+    }
+
+    /* Style the table for printing */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin-top: 20px !important;
+    }
+
+    th, td {
+        border: 1px solid #ccc !important;
+        color: black !important;
+        padding: 8px !important;
+    }
+
+    th {
+        background-color: #f0f0f0 !important;
+    }
+
+    /* Strip background colors from pills */
+    .view-pill {
+        background: none !important;
+        border: none !important;
+        color: black !important;
+        padding: 0 !important;
+    }
+}
