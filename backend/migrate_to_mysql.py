@@ -7,9 +7,9 @@ from datetime import datetime
 # Configuración: Ajustar según los detalles del VPS
 SQLITE_DB = 'instance/crm.db'  # Usaremos la copia en la raíz
 MYSQL_CONFIG = {
-    'host': 'localhost',  # Cambiar por la IP del VPS si se corre localmente
+    'host': '45.33.39.57',  # Cambiar por la IP del VPS si se corre localmente
     'user': 'crm_user',
-    'password': 'your_password',
+    'password': '$UMAE3_2026$',
     'database': 'crm_umaee',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
