@@ -892,7 +892,7 @@ async function crearTurno() {
 let currentUser = null;
 
 function getCurrentRole() {
-    if (currentUser && currentUser.rol === 'DESARROLLADOR') {
+    if (currentUser && (currentUser.rol === 'DESARROLLADOR' || currentUser.email === 'dev@umaee.edu.mx')) {
         const mimic = localStorage.getItem('dev_mimic_role');
         return mimic || 'SUPERADMIN';
     }
@@ -938,7 +938,7 @@ function initApp() {
     let displayName = currentUser.nombre_completo;
     
     // Developer toggle
-    if (currentUser.rol === 'DESARROLLADOR') {
+    if (currentUser.rol === 'DESARROLLADOR' || currentUser.email === 'dev@umaee.edu.mx') {
         const switcher = document.getElementById('dev-role-switcher');
         if (switcher) {
             switcher.style.display = 'inline-block';
@@ -955,7 +955,7 @@ function initApp() {
 }
 
 window.mimicRole = function(role) {
-    if (currentUser && currentUser.rol === 'DESARROLLADOR') {
+    if (currentUser && (currentUser.rol === 'DESARROLLADOR' || currentUser.email === 'dev@umaee.edu.mx')) {
         localStorage.setItem('dev_mimic_role', role);
         window.location.reload(); 
     }
@@ -970,6 +970,33 @@ function checkLoginState() {
         } catch (e) {
             console.error('Error parsing stored user', e);
         }
+    }
+}
+
+/* --- Reset Database --- */
+async function resetDatabase() {
+    if (!confirm('¿ESTÁS SEGURO? Esta acción ELIMINARÁ TODOS LOS DATOS del sistema (prospectos, seguimientos, ofertas, etc.) y solo conservará el usuario administrador predeterminado.')) return;
+    const confirmText = 'BORRAR TODO EL CRM';
+    const input = prompt(`Para confirmar, escribe: ${confirmText}`);
+    
+    if (input !== confirmText) {
+        alert('Confirmación cancelada o incorrecta.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/admin/reset-db`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message);
+            sessionStorage.clear(); // Clear cache
+            localStorage.removeItem('crm_user'); // Clear user
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo reiniciar la base de datos'));
+        }
+    } catch (e) {
+        alert('Error de conexión al intentar reiniciar.');
     }
 }
 
@@ -1004,6 +1031,22 @@ function updateUIForRole() {
         if(navReportes) navReportes.style.display = 'inline-block';
         if(navFinanzas) navFinanzas.style.display = 'inline-block';
         if(navKpi) navKpi.style.display = 'inline-block';
+        
+        // Reset DB button
+        const btnReset = document.getElementById('btn-reset-db');
+        if (btnReset) btnReset.style.display = 'inline-block';
+    } else if (role === 'DESARROLLADOR') {
+        // Developers also see Everything + Reset
+        if(navDashboard) navDashboard.style.display = 'inline-block';
+        if(navUsuarios) navUsuarios.style.display = 'inline-block';
+        if(navOfertas) navOfertas.style.display = 'inline-block';
+        if(navDatabase) navDatabase.style.display = 'inline-block';
+        if(navReportes) navReportes.style.display = 'inline-block';
+        if(navFinanzas) navFinanzas.style.display = 'inline-block';
+        if(navKpi) navKpi.style.display = 'inline-block';
+
+        const btnReset = document.getElementById('btn-reset-db');
+        if (btnReset) btnReset.style.display = 'inline-block';
     } else if (role === 'ADMIN') {
         if(navDashboard) navDashboard.style.display = 'inline-block';
         if(navOfertas) navOfertas.style.display = 'inline-block';
@@ -1012,7 +1055,6 @@ function updateUIForRole() {
         if(navFinanzas) navFinanzas.style.display = 'inline-block';
         if(navKpi) navKpi.style.display = 'inline-block';
     } else if (role === 'VENDEDOR') {
-        if(navDashboard) navDashboard.style.display = 'inline-block';
         if(navReportes) navReportes.style.display = 'inline-block';
     }
     const currentActive = document.querySelector('.nav-links a.active');

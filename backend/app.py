@@ -57,6 +57,18 @@ def create_app():
                 db.session.commit()
             except:
                 db.session.rollback()
+
+        # Database Bootstrap: Create default admin if no users exist
+        if Usuario.query.first() is None:
+            admin = Usuario(
+                nombre_completo='Administrador Sistema',
+                email='admin@umaee.edu.mx',
+                rol='SUPERADMIN'
+            )
+            admin.set_password('123umaee')
+            db.session.add(admin)
+            db.session.commit()
+            print("Default admin created: admin@umaee.edu.mx / 123umaee")
     
     @app.route('/api/login', methods=['POST'])
     def login():
@@ -591,6 +603,61 @@ def create_app():
             return oferta.to_dict()
 
     # User Management Endpoints
+    @app.route('/api/admin/reset-db', methods=['POST'])
+    def reset_db():
+        role = session.get('rol')
+        if role not in ['SUPERADMIN', 'DESARROLLADOR']:
+            return {'error': 'Acceso denegado: Se requiere rol de Superadministrador'}, 403
+            
+        try:
+            db.drop_all()
+            db.create_all()
+            
+            # Re-run column migration just in case (though create_all should handle it if models are current)
+            from sqlalchemy import text
+            cols_to_check = [
+                ('carrera_interes_2', 'VARCHAR(100)'),
+                ('carrera_interes_3', 'VARCHAR(100)'),
+                ('periodo_interes', 'VARCHAR(100)'),
+                ('turno_interes', 'VARCHAR(50)'),
+                ('tutor_nombre', 'VARCHAR(255)'),
+                ('tutor_email', 'VARCHAR(150)'),
+                ('tutor_telefono', 'VARCHAR(20)'),
+                ('fecha_cita', 'DATETIME'),
+                ('curp', 'VARCHAR(18)')
+            ]
+            for col, col_type in cols_to_check:
+                try:
+                    db.session.execute(text(f"ALTER TABLE prospectos ADD COLUMN {col} {col_type}"))
+                    db.session.commit()
+                except:
+                    db.session.rollback()
+
+            # Restore default admin
+            admin = Usuario(
+                nombre_completo='Administrador Sistema',
+                email='admin@umaee.edu.mx',
+                rol='SUPERADMIN'
+            )
+            admin.set_password('123umaee')
+            db.session.add(admin)
+            
+            # Restore dev account
+            dev = Usuario(
+                nombre_completo='Desarrollador (Test)',
+                email='dev@umaee.edu.mx',
+                rol='DESARROLLADOR'
+            )
+            dev.set_password('dev123')
+            db.session.add(dev)
+            
+            db.session.commit()
+            session.clear() # Force logout after reset
+            return {'message': 'Base de datos reiniciada con éxito. Acceda con admin@umaee.edu.mx / 123umaee'}
+        except Exception as e:
+            db.session.rollback()
+            return {'error': f'Error al reiniciar: {str(e)}'}, 500
+
     @app.route('/api/admin/usuarios', methods=['GET'])
     def get_usuarios():
         usuarios = Usuario.query.all()

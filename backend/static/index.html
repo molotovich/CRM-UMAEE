@@ -335,6 +335,7 @@
         <div class="section-header">
             <h1>Administración de Base de Datos</h1>
             <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-reset-db" class="btn-danger" style="display:none; background: #dc3545; color: white;" onclick="resetDatabase()">REINICIAR BASE DE DATOS</button>
                 <button class="btn-secondary" onclick="fetch(`${API_BASE}/admin/template/download`).then(r => r.blob()).then(b => {
                     const url = window.URL.createObjectURL(b);
                     const a = document.createElement('a');
