@@ -124,7 +124,7 @@ async function fetchProspectos(forceRefresh = false) {
 let allEscuelas = [];
 
 async function fetchEscuelas(forceRefresh = false) {
-    const data = await fetchWithCache(`${API_BASE}/escuelas`, forceRefresh);
+    const data = await fetchWithCache(`${API_BASE}/admin/escuelas`, forceRefresh);
     allEscuelas = data.escuelas;
     
     const datalist = document.getElementById('escuelas-list');
@@ -181,10 +181,11 @@ function renderKanban(prospectos) {
     phases.forEach(phase => {
         const container = document.getElementById(`cards-${phase}`);
         if (!container) return;
-        container.innerHTML = '';
+        
+        const fragment = document.createDocumentFragment();
         const countBadge = document.getElementById(`count-${phase}`);
         const filtered = prospectos.filter(p => p.fase_crm === phase);
-        countBadge.innerText = filtered.length;
+        if (countBadge) countBadge.innerText = filtered.length;
 
         filtered.forEach(p => {
             const card = document.createElement('div');
@@ -229,8 +230,11 @@ function renderKanban(prospectos) {
             card.ondragend = () => card.classList.remove('dragging');
             
             card.onclick = () => openDetail(p.id_prospecto);
-            container.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        container.innerHTML = '';
+        container.appendChild(fragment);
     });
 }
 
@@ -687,6 +691,7 @@ document.getElementById('user-form').onsubmit = async (e) => {
 };
 
 
+
 async function loadDashboard() {
     const res = await fetch(`${API_BASE}/admin/dashboard`);
     const data = await res.json();
@@ -746,8 +751,7 @@ function hideProspectList() {
 let allOfertas = [];
 
 async function loadOfertas() {
-    const resCarreras = await fetch(`${API_BASE}/admin/carreras`);
-    const dataCarreras = await resCarreras.json();
+    const dataCarreras = await fetchWithCache(`${API_BASE}/admin/carreras`);
     const tbodyCarreras = document.getElementById('carreras-table-body');
     tbodyCarreras.innerHTML = dataCarreras.carreras.map(c => `<tr><td>${c.id_carrera}</td><td>${c.nombre}</td></tr>`).join('');
     
@@ -755,15 +759,13 @@ async function loadOfertas() {
         `<option value="ALL">-- Todas las Carreras --</option>` + 
         dataCarreras.carreras.map(c => `<option value="${c.id_carrera}">${c.nombre}</option>`).join('');
 
-    const resPeriodos = await fetch(`${API_BASE}/admin/periodos`);
-    const dataPeriodos = await resPeriodos.json();
+    const dataPeriodos = await fetchWithCache(`${API_BASE}/admin/periodos`);
     const tbodyPeriodos = document.getElementById('periodos-table-body');
     tbodyPeriodos.innerHTML = dataPeriodos.periodos.map(p => `<tr><td>${p.id_periodo}</td><td>${p.nombre}</td></tr>`).join('');
 
     document.getElementById('oferta-periodo-select').innerHTML = dataPeriodos.periodos.map(p => `<option value="${p.id_periodo}">${p.nombre}</option>`).join('');
 
-    const resTurnos = await fetch(`${API_BASE}/admin/turnos`);
-    const dataTurnos = await resTurnos.json();
+    const dataTurnos = await fetchWithCache(`${API_BASE}/admin/turnos`);
     const tbodyTurnos = document.getElementById('turnos-table-body');
     if (tbodyTurnos) tbodyTurnos.innerHTML = dataTurnos.turnos.map(t => `<tr><td>${t.id_turno}</td><td>${t.nombre}</td></tr>`).join('');
     
@@ -799,8 +801,7 @@ async function loadOfertas() {
     const tSel = document.getElementById('turno-interes-select');
     if (tSel) tSel.innerHTML = turnoOptions;
 
-    const resOfertas = await fetch(`${API_BASE}/admin/ofertas`);
-    const dataOfertas = await resOfertas.json();
+    const dataOfertas = await fetchWithCache(`${API_BASE}/admin/ofertas`);
     allOfertas = dataOfertas.ofertas;
     
     const tbodyOfertas = document.getElementById('ofertas-table-body');

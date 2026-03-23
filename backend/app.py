@@ -70,6 +70,15 @@ def create_app():
             db.session.commit()
             print("Default admin created: admin@umaee.edu.mx / 123umaee")
     
+    from functools import wraps
+    def admin_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if session.get('rol') not in ['SUPERADMIN', 'ADMIN', 'DESARROLLADOR']:
+                return {'error': 'Acceso denegado'}, 403
+            return f(*args, **kwargs)
+        return decorated_function
+
     @app.route('/api/login', methods=['POST'])
     def login():
         data = request.json
@@ -505,7 +514,8 @@ def create_app():
         return {'carreras': [c.to_dict() for c in carreras]}
 
     @app.route('/api/admin/carreras', methods=['POST'])
-    def create_carrera():
+    @admin_required
+    def add_carrera():
         data = request.json
         nueva = Carrera(nombre=data['nombre'])
         db.session.add(nueva)
@@ -518,7 +528,8 @@ def create_app():
         return {'periodos': [p.to_dict() for p in periodos]}
 
     @app.route('/api/admin/periodos', methods=['POST'])
-    def create_periodo():
+    @admin_required
+    def add_periodo():
         data = request.json
         nuevo = Periodo(nombre=data['nombre'])
         db.session.add(nuevo)
@@ -531,9 +542,10 @@ def create_app():
         return {'turnos': [t.to_dict() for t in turnos]}
 
     @app.route('/api/admin/turnos', methods=['POST'])
-    def create_turno():
-        user_role = request.headers.get('X-Role', 'VENDEDOR')
-        if user_role != 'SUPERADMIN':
+    @admin_required
+    def add_turno():
+        role = session.get('rol')
+        if role != 'SUPERADMIN' and role != 'DESARROLLADOR':
             return {'error': 'Solo el superadministrador puede agregar turnos'}, 403
             
         data = request.json
@@ -548,6 +560,7 @@ def create_app():
         return {'ofertas': [o.to_dict() for o in ofertas]}
 
     @app.route('/api/admin/ofertas', methods=['POST'])
+    @admin_required
     def create_oferta():
         data = request.json
         
@@ -576,11 +589,12 @@ def create_app():
             db.session.commit()
             return nueva.to_dict(), 201
 
-    @app.route('/api/admin/ofertas/<int:id_oferta>', methods=['PUT', 'DELETE'])
-    def modify_oferta(id_oferta):
-        user_role = request.headers.get('X-Role', 'VENDEDOR')
-        if user_role != 'SUPERADMIN':
-            return {'error': 'Solo el superadministrador puede modificar o eliminar ofertas'}, 403
+    @app.route('/api/admin/ofertas/<int:id_oferta>', methods=['PUT'])
+    @admin_required
+    def update_oferta(id_oferta):
+        role = session.get('rol')
+        if role != 'SUPERADMIN' and role != 'DESARROLLADOR':
+            return {'error': 'Solo el superadministrador puede modificar ofertas'}, 403
             
         oferta = OfertaAcademica.query.get_or_404(id_oferta)
         
@@ -659,11 +673,13 @@ def create_app():
             return {'error': f'Error al reiniciar: {str(e)}'}, 500
 
     @app.route('/api/admin/usuarios', methods=['GET'])
+    @admin_required
     def get_usuarios():
         usuarios = Usuario.query.all()
         return {'usuarios': [u.to_dict() for u in usuarios]}
 
     @app.route('/api/admin/usuarios', methods=['POST'])
+    @admin_required
     def create_usuario():
         data = request.json
         nuevo = Usuario(
@@ -678,6 +694,7 @@ def create_app():
         return nuevo.to_dict(), 201
 
     @app.route('/api/admin/usuarios/<int:id_usuario>', methods=['PUT'])
+    @admin_required
     def update_usuario(id_usuario):
         data = request.json
         u = Usuario.query.get_or_404(id_usuario)
